@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AppVersion="0.1.0.0"
+  Author="AutoCAD Claude Bridge contributors"
+  Name="AutoCAD Claude Bridge"
+  Description="Local MCP bridge between Claude Desktop and AutoCAD 2027"
+  ProductCode="{907B9B45-8B7B-480C-953C-51BFB5EE20D6}"
+  UpgradeCode="{39869370-24D2-418B-9131-F2F4D09DF4A0}"
+>
+  <Components Description="AutoCAD 2027 local bridge">
+    <RuntimeRequirements
+      OS="Win64"
+      Platform="AutoCAD*"
+      SeriesMin="R26.0"
+      SeriesMax="R26.0"
+    />
+    <ComponentEntry
+      AppName="AutoCADClaudeBridge"
+      AppDescription="Local MCP bridge for controlled AutoCAD drawing tools"
+      AppType=".Net"
+      ModuleName="./Contents/Windows/AutoCADClaudeBridge.dll"
+      LoadReasons="LoadOnAutoCADStartup"
+    >
+      <Commands GroupName="AutoCADClaudeBridge">
+        <Command Global="CLAUDEBRIDGE" Local="CLAUDEBRIDGE" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

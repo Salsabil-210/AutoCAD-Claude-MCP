@@ -1,0 +1,10 @@
+bin/
+obj/
+dist/
+.build-state/
+*.mcpb
+*.zip
+*.user
+.vs/
+.vscode/
+.test-localappdata/

@@ -1,0 +1,22 @@
+AUTO-INSTALL
+============
+
+Requirements:
+- Windows x64
+- AutoCAD 2027
+- Claude Desktop
+
+1. Close AutoCAD.
+2. Double-click Install.cmd.
+3. Review and approve the AutoCAD Local Bridge extension in Claude Desktop.
+4. Start AutoCAD and open a drawing.
+5. Type CLAUDEBRIDGE. AutoCAD should report that the bridge is running.
+6. In Claude Desktop, enable AutoCAD Local Bridge and call autocad_status.
+
+The installer automatically copies the AutoCAD plug-in to the current user's
+Autodesk ApplicationPlugins folder. Claude still requires approval before a
+custom extension is installed. It also creates a unique local bridge token in
+%LOCALAPPDATA%\AutoCADClaudeBridge. Do not share that token.
+
+To remove the AutoCAD side, close AutoCAD and run Uninstall.cmd. Remove the
+Claude extension separately from Claude Desktop Settings > Extensions.

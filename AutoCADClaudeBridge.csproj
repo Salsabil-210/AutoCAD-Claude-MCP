@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>AutoCADClaudeBridge</AssemblyName>
+    <RootNamespace>AutoCADClaudeBridge</RootNamespace>
+    <AutoCADInstallDir Condition="'$(AutoCADInstallDir)' == ''">C:\Program Files\Autodesk\AutoCAD 2027</AutoCADInstallDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AutoCADInstallDir)\AcCoreMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AutoCADInstallDir)\AcDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcMgd">
+      <HintPath>$(AutoCADInstallDir)\AcMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateAutoCADInstall" BeforeTargets="ResolveReferences">
+    <Error
+      Condition="!Exists('$(AutoCADInstallDir)\AcCoreMgd.dll')"
+      Text="AutoCAD 2027 API files were not found at $(AutoCADInstallDir). Pass -p:AutoCADInstallDir=&quot;C:\path\to\AutoCAD 2027&quot; if AutoCAD is installed elsewhere."
+    />
+  </Target>
+</Project>

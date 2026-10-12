@@ -1,0 +1,41 @@
+{
+  "manifest_version": "0.3",
+  "name": "autocad-local-bridge",
+  "display_name": "AutoCAD Local Bridge",
+  "version": "0.1.0",
+  "description": "Safely draw basic lines and rectangles in the active local AutoCAD 2027 drawing.",
+  "long_description": "Connects Claude Desktop to an AutoCAD 2027 plug-in running on the same Windows computer. The initial version supports connection status, lines, and rectangles only.",
+  "author": {
+    "name": "Salsabil Alkhatib"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "autocad_status",
+      "description": "Check whether the local AutoCAD bridge is running and identify the active drawing."
+    },
+    {
+      "name": "draw_line",
+      "description": "Draw one line in the active AutoCAD drawing after the user approves the tool call."
+    },
+    {
+      "name": "draw_rectangle",
+      "description": "Draw one axis-aligned rectangle in the active AutoCAD drawing after the user approves the tool call."
+    }
+  ],
+  "keywords": ["autocad", "cad", "drawing", "local"],
+  "compatibility": {
+    "platforms": ["win32"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}
