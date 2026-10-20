@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 $projectDirectory = $PSScriptRoot
 $distributionDirectory = Join-Path $projectDirectory "dist"
-$releaseDirectory = Join-Path $distributionDirectory "AutoCAD-Claude-Bridge-0.1.0-win-x64"
+$releaseDirectory = Join-Path $distributionDirectory "AutoCAD-Claude-Bridge-0.2.0-win-x64"
 $bundleDirectory = Join-Path $releaseDirectory "AutoCADClaudeBridge.bundle"
 $bundleContents = Join-Path $bundleDirectory "Contents\Windows"
-$releaseZip = Join-Path $distributionDirectory "AutoCAD-Claude-Bridge-0.1.0-win-x64.zip"
+$releaseZip = Join-Path $distributionDirectory "AutoCAD-Claude-Bridge-0.2.0-win-x64.zip"
 
 & (Join-Path $projectDirectory "build.ps1")
 if ($LASTEXITCODE -ne 0) {

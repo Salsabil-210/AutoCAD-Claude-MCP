@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "autocad-local-bridge",
   "display_name": "AutoCAD Local Bridge",
-  "version": "0.1.0",
-  "description": "Safely draw basic lines and rectangles in the active local AutoCAD 2027 drawing.",
-  "long_description": "Connects Claude Desktop to an AutoCAD 2027 plug-in running on the same Windows computer. The initial version supports connection status, lines, and rectangles only.",
+  "version": "0.2.0",
+  "description": "Draw, dimension, hatch, annotate, list, move and erase entities in the active local AutoCAD 2027 drawing through validated tools.",
+  "long_description": "Connects Claude Desktop to an AutoCAD 2027 plug-in running on the same Windows computer over a token-protected localhost socket. Every tool is narrow and validated; there is no arbitrary command or LISP execution.",
   "author": {
     "name": "Salsabil Alkhatib"
   },
@@ -13,27 +13,88 @@
     "entry_point": "server/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/server/index.js"],
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
       "env": {}
     }
   },
   "tools": [
     {
       "name": "autocad_status",
-      "description": "Check whether the local AutoCAD bridge is running and identify the active drawing."
+      "description": "Check whether AutoCAD 2027 is connected and return the active drawing name and its units (units, insunits, lunits, measurement, dimlfac, dimscale). Use this before any drawing action. If units is \"unitless\", ask the user what one drawing unit means before drawing with a unit."
     },
     {
       "name": "draw_line",
-      "description": "Draw one line in the active AutoCAD drawing after the user approves the tool call."
+      "description": "Draw exactly one straight line in the active AutoCAD drawing. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
     },
     {
       "name": "draw_rectangle",
-      "description": "Draw one axis-aligned rectangle in the active AutoCAD drawing after the user approves the tool call."
+      "description": "Draw exactly one axis-aligned closed rectangle in the active AutoCAD drawing. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "draw_polyline",
+      "description": "Draw one 2D polyline through the given points in the active drawing. Set closed to true to join the last point back to the first (needs at least 3 points). Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "add_linear_dimension",
+      "description": "Add one linear (rotated) dimension measuring the distance between two points, using the current DIMSTYLE. rotation 0 measures horizontally, 90 vertically. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "add_aligned_dimension",
+      "description": "Add one aligned dimension parallel to the line between two points, using the current DIMSTYLE. offset is the signed distance of the dimension line from that line (positive = left side when walking from point 1 to point 2). Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "add_angular_dimension",
+      "description": "Add one angular dimension between two non-parallel lines, using the current DIMSTYLE. The arc point picks which of the angles is dimensioned. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "add_hatch",
+      "description": "Fill one closed polygon with a non-associative hatch. pattern defaults to SOLID; any predefined AutoCAD pattern name such as ANSI31 can be used. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "add_text",
+      "description": "Add one multiline text (MText) object to the active drawing. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "add_leader",
+      "description": "Add one multileader: an arrow at the arrow point, a leader line to the landing point, and text at the landing. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "list_entities",
+      "description": "List model-space entities with handle, type, layer and key geometry (line endpoints, polyline vertices, dimension measurement and override text, text content). Read-only. Set `units` to get lengths back in that unit (e.g. the unit the user is working in); without it values are in drawing units. The result's `units` field says which."
+    },
+    {
+      "name": "erase_entities",
+      "description": "Erase exactly the model-space entities with the given handles. Reports handles that were not found. Never acts on a selection or on anything not listed. Undo with UNDO in AutoCAD."
+    },
+    {
+      "name": "delete_layer",
+      "description": "Erase every entity on one layer (model and paper space) and then purge the layer. Refuses layer 0, Defpoints, the current layer, locked layers, and layers still used by block definitions. Confirm with the user before calling."
+    },
+    {
+      "name": "move_entities",
+      "description": "Move exactly the model-space entities with the given handles by dx, dy. Reports handles that were not found. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "set_dimension_props",
+      "description": "Change the appearance of one existing dimension. Provide at least one property. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "zoom_extents",
+      "description": "Zoom the active model-space view to the drawing extents. Does not change the drawing."
     }
   ],
-  "keywords": ["autocad", "cad", "drawing", "local"],
+  "keywords": [
+    "autocad",
+    "cad",
+    "drawing",
+    "local"
+  ],
   "compatibility": {
-    "platforms": ["win32"],
+    "platforms": [
+      "win32"
+    ],
     "runtimes": {
       "node": ">=18.0.0"
     }

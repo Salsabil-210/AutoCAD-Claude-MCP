@@ -53,7 +53,7 @@ Attach these generated files to a GitHub Release:
 ```text
 bin\Release\net10.0-windows\AutoCADClaudeBridge.dll
 dist\AutoCAD-Local-Bridge.mcpb
-dist\AutoCAD-Claude-Bridge-0.1.0-win-x64.zip
+dist\AutoCAD-Claude-Bridge-0.2.0-win-x64.zip
 ```
 
 Users do not need the source code to run the bridge. They load the DLL with AutoCAD's `NETLOAD` command and install the MCPB from Claude Desktop's extension settings.

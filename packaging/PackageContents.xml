@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ApplicationPackage
   SchemaVersion="1.0"
-  AppVersion="0.1.0.0"
+  AppVersion="0.2.0.0"
   Author="AutoCAD Claude Bridge contributors"
   Name="AutoCAD Claude Bridge"
   Description="Local MCP bridge between Claude Desktop and AutoCAD 2027"
