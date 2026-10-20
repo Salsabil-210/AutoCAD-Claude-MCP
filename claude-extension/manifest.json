@@ -62,7 +62,7 @@
     },
     {
       "name": "list_entities",
-      "description": "List model-space entities with handle, type, layer and key geometry (line endpoints, polyline vertices, dimension measurement and override text, text content). Read-only. Set `units` to get lengths back in that unit (e.g. the unit the user is working in); without it values are in drawing units. The result's `units` field says which."
+      "description": "List model-space entities with handle, type, layer, bounding box and key geometry (line endpoints, polyline vertices, dimension measurement and override text, text content, block name, position, rotation and attributes). Read-only. Set `units` to get lengths back in that unit (e.g. the unit the user is working in); without it values are in drawing units. The result's `units` field says which."
     },
     {
       "name": "erase_entities",
@@ -83,6 +83,66 @@
     {
       "name": "zoom_extents",
       "description": "Zoom the active model-space view to the drawing extents. Does not change the drawing."
+    },
+    {
+      "name": "draw_circle",
+      "description": "Draw one circle, e.g. a round table, column or fixture detail. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "draw_arc",
+      "description": "Draw one circular arc running counter-clockwise from startAngle to endAngle (degrees, 0 = +X). For door swings in walls prefer draw_walls openings. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "draw_walls",
+      "description": "Draw double-line walls along a centreline path with one thickness and mitred corners. Use closed: true for the exterior outline. Doors, windows and plain openings are placed by segment index (0 = from points[0] to points[1]) and offset from that segment's start to the opening's near edge along the centreline. Doors and openings break the wall lines and get jamb caps and a centreline room separation line (layer A-ROOM-SEP); doors also get a leaf and 90 degree swing (hinge: start/end of the opening, swing: left/right of the path direction). Windows keep the wall lines and add jamb and glazing lines. End interior walls at the face of the wall they meet (half the other wall's thickness from its centreline). Run detect_rooms with wallLayers [wall layer, A-ROOM-SEP]. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "place_furniture",
+      "description": "Place one furniture or fixture symbol as a block (CB_<KIND>) centred at x, y. Width runs along the symbol's X, depth along Y, and the back edge (bed headboard, sofa back, WC tank) faces +Y at rotation 0. To put the back against a wall: wall above = 0, wall on the left = 90, wall below = 180, wall on the right = -90; place the centre half the depth away from the wall face. Fixtures go on A-FIXT, furniture on A-FURN unless layer is given. Omit width/depth for standard sizes. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "insert_block",
+      "description": "Insert one block reference by name: a block already defined in the drawing, or <name>.dwg from the bridge block library folder (%LOCALAPPDATA%\\AutoCADClaudeBridge\\blocks). Scales are ratios and are not unit-converted. attributes sets attribute values by tag. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "copy_entities",
+      "description": "Copy the entities with the given handles by dx, dy, count times (copy n is offset n times dx, dy), e.g. a row of chairs. Returns the new handles. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "rotate_entities",
+      "description": "Rotate the entities with the given handles about a base point by an angle in degrees (counter-clockwise). Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "mirror_entities",
+      "description": "Mirror the entities with the given handles about the line through (x1, y1) and (x2, y2). keepOriginal (default true) makes mirrored copies; false flips the originals. Text is mirrored as geometry, so mirror text separately or re-add it. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "floor_plan_summary",
+      "description": "Summarize the floor plan in the active drawing: saved plan type, model-space extents with width and height, and entity counts by layer, by type, and by block name (furniture, fixtures, doors). Read-only. Call this first to understand a floor plan before listing entities. Set `units` to get lengths back in that unit."
+    },
+    {
+      "name": "query_region",
+      "description": "List model-space entities inside a rectangular region of the floor plan, tested by bounding box. mode \"crossing\" (default) returns entities whose bounding box overlaps the region; \"inside\" returns only those whose bounding box lies fully within it. Read-only. Same entity format as list_entities. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "set_floor_plan_type",
+      "description": "Save the floor plan type in the active drawing so later sessions know what kind of plan it is. Stored inside the DWG; undo with UNDO in AutoCAD. Ask the user if the type is unclear."
+    },
+    {
+      "name": "detect_rooms",
+      "description": "Find the rooms of the floor plan as the closed areas formed by walls on the given layers. Doorway gaps up to maxOpeningWidth are closed along the wall line, tiny gaps up to maxDraftingGap are closed in any direction, and remaining open wall ends are flagged. Each room returns net area (holes such as columns removed), area in square metres, perimeter, outline, the text labels and room-tag attributes inside it (its name when there is exactly one), and the blocks inside it. Read-only. Use floor_plan_summary first to find the wall layers. Defaults are 1.2 m, 2 cm, 0.5 m and 1 m²; unitless drawings need them passed explicitly. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "save_rooms",
+      "description": "Run detect_rooms with the same arguments and save every room in the drawing (Named Objects Dictionary entry CLAUDE_BRIDGE_ROOMS) with an ID, name, status, outline, net and gross area, perimeter, source wall handles with geometry fingerprints, and timestamps. Rooms matching saved ones (by unique label name, then by outline overlap) keep their IDs; saved rooms no longer found are removed. Rooms with several labels are saved with status needs_review. confirmRoomIds marks rooms confirmed only after the user checked them; it is refused for needs_review rooms or when the plan has open wall ends, and then nothing is saved. Undo with UNDO in AutoCAD. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "get_rooms",
+      "description": "Return the rooms saved in the drawing by save_rooms. Each room is checked against the drawing: if any of its source walls was erased, moved, reshaped or put on another layer, its status is stale with the reasons; run save_rooms again to update it. Statuses: ok, needs_review, confirmed, stale. Only confirmed rooms have been checked by the user. Read-only. Set `units` to get lengths and areas back in that unit; square metres are always included."
+    },
+    {
+      "name": "export_room_schedule",
+      "description": "Write the saved rooms as a CSV room schedule: room ID, name, status, net and gross area in m², perimeter in m, and warnings. Rooms are checked for staleness first; needs_review and stale rooms keep that status in the file and are never shown as confirmed. Writes to path, or next to the saved DWG as <drawing>-rooms.csv. Refuses to replace an existing file unless overwrite is true; ask the user first. The file is not undone by UNDO."
     }
   ],
   "keywords": [

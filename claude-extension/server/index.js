@@ -99,6 +99,24 @@ const units = {
   description:
     "Unit of every length in this call (coordinates, sizes, offsets, text heights). Set it to the unit the user stated and pass their numbers unchanged; AutoCAD converts them to drawing units. Omit only when the values are already in drawing units.",
 };
+const roomLayers = (description) => ({
+  type: "array",
+  items: { ...layer, default: undefined },
+  minItems: 1,
+  maxItems: 20,
+  description,
+});
+const roomDetectionOptions = {
+  maxOpeningWidth: size("Widest doorway or opening to close along a wall line."),
+  maxDraftingGap: size("Widest gap to close in any direction where wall lines nearly meet."),
+  minRoomWidth: size("Narrower areas, such as the space between the two lines of a wall, are not rooms."),
+  minRoomArea: size("Smallest room area, in the square of `units`."),
+};
+const roomIdSchema = {
+  type: "string",
+  pattern: "^R[0-9]{1,7}$",
+  description: "Saved room ID such as R1, from save_rooms or get_rooms.",
+};
 const UNIT_RULE =
   " Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them.";
 
@@ -350,7 +368,7 @@ const tools = [
   {
     name: "list_entities",
     description:
-      "List model-space entities with handle, type, layer and key geometry (line endpoints, polyline vertices, dimension measurement and override text, text content). Read-only. Set `units` to get lengths back in that unit (e.g. the unit the user is working in); without it values are in drawing units. The result's `units` field says which.",
+      "List model-space entities with handle, type, layer, bounding box and key geometry (line endpoints, polyline vertices, dimension measurement and override text, text content, block name, position, rotation and attributes). Read-only. Set `units` to get lengths back in that unit (e.g. the unit the user is working in); without it values are in drawing units. The result's `units` field says which.",
     inputSchema: {
       type: "object",
       properties: {
@@ -433,6 +451,325 @@ const tools = [
     description: "Zoom the active model-space view to the drawing extents. Does not change the drawing.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "draw_circle",
+    description: "Draw one circle, e.g. a round table, column or fixture detail." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        centerX: coordinate("Centre X."),
+        centerY: coordinate("Centre Y."),
+        radius: size("Radius."),
+        color,
+        layer,
+      },
+      required: ["centerX", "centerY", "radius"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "draw_arc",
+    description:
+      "Draw one circular arc running counter-clockwise from startAngle to endAngle (degrees, 0 = +X). For door swings in walls prefer draw_walls openings." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        centerX: coordinate("Centre X."),
+        centerY: coordinate("Centre Y."),
+        radius: size("Radius."),
+        startAngle: angle("Start angle in degrees."),
+        endAngle: angle("End angle in degrees."),
+        color,
+        layer,
+      },
+      required: ["centerX", "centerY", "radius", "startAngle", "endAngle"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "draw_walls",
+    description:
+      "Draw double-line walls along a centreline path with one thickness and mitred corners. Use closed: true for the exterior outline. Doors, windows and plain openings are placed by segment index (0 = from points[0] to points[1]) and offset from that segment's start to the opening's near edge along the centreline. Doors and openings break the wall lines and get jamb caps and a centreline room separation line (layer A-ROOM-SEP); doors also get a leaf and 90 degree swing (hinge: start/end of the opening, swing: left/right of the path direction). Windows keep the wall lines and add jamb and glazing lines. End interior walls at the face of the wall they meet (half the other wall's thickness from its centreline). Run detect_rooms with wallLayers [wall layer, A-ROOM-SEP]." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        points: {
+          type: "array",
+          items: point,
+          minItems: 2,
+          maxItems: MAX_POINTS,
+          description: "Wall centreline points in order.",
+        },
+        closed: { type: "boolean", default: false, description: "Join the last point back to the first." },
+        thickness: size("Wall thickness, e.g. 0.2 m exterior, 0.1 m partition."),
+        capEnds: { type: "boolean", default: true, description: "Close the two ends of an open path with a short line." },
+        openings: {
+          type: "array",
+          maxItems: 200,
+          items: {
+            type: "object",
+            properties: {
+              segment: { type: "integer", minimum: 0, maximum: MAX_POINTS, description: "Path segment index." },
+              offset: { type: "number", minimum: 0, maximum: MAX_SIZE, description: "Distance from the segment start to the opening's near edge." },
+              width: size("Opening width."),
+              kind: { type: "string", enum: ["door", "window", "opening"], default: "door", description: "What fills the opening." },
+              hinge: { type: "string", enum: ["start", "end"], default: "start", description: "Door hinge at the near (start) or far (end) edge." },
+              swing: { type: "string", enum: ["left", "right"], default: "left", description: "Side of the path the door opens towards." },
+            },
+            required: ["segment", "offset", "width"],
+            additionalProperties: false,
+          },
+          description: "Doors, windows and openings in these walls.",
+        },
+        wallLayer: { ...layer, default: "A-WALL" },
+        doorLayer: { ...layer, default: "A-DOOR" },
+        windowLayer: { ...layer, default: "A-GLAZ" },
+        separationLayer: { ...layer, default: "A-ROOM-SEP" },
+      },
+      required: ["points", "thickness"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "place_furniture",
+    description:
+      "Place one furniture or fixture symbol as a block (CB_<KIND>) centred at x, y. Width runs along the symbol's X, depth along Y, and the back edge (bed headboard, sofa back, WC tank) faces +Y at rotation 0. To put the back against a wall: wall above = 0, wall on the left = 90, wall below = 180, wall on the right = -90; place the centre half the depth away from the wall face. Fixtures go on A-FIXT, furniture on A-FURN unless layer is given. Omit width/depth for standard sizes." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        kind: {
+          type: "string",
+          enum: [
+            "bed", "single_bed", "wardrobe", "desk", "chair", "table", "round_table", "sofa", "armchair",
+            "tv_unit", "plant", "wc", "basin", "bathtub", "shower", "kitchen_sink", "stove", "fridge", "washing_machine",
+          ],
+          description: "Symbol to place.",
+        },
+        x: coordinate("Centre X."),
+        y: coordinate("Centre Y."),
+        rotation: angle("Rotation in degrees, counter-clockwise."),
+        width: size("Optional width; default is the standard size."),
+        depth: size("Optional depth; default is the standard size."),
+        layer: { ...layer, default: undefined, description: "Optional layer; default A-FURN or A-FIXT." },
+      },
+      required: ["kind", "x", "y"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "insert_block",
+    description:
+      "Insert one block reference by name: a block already defined in the drawing, or <name>.dwg from the bridge block library folder (%LOCALAPPDATA%\\AutoCADClaudeBridge\\blocks). Scales are ratios and are not unit-converted. attributes sets attribute values by tag." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        name: { ...layer, default: undefined, description: "Block name (letters, numbers, underscores, hyphens)." },
+        x: coordinate("Insertion point X."),
+        y: coordinate("Insertion point Y."),
+        rotation: angle("Rotation in degrees, counter-clockwise."),
+        scale: { type: "number", exclusiveMinimum: 0, maximum: 1000, description: "Uniform scale ratio." },
+        scaleX: { type: "number", exclusiveMinimum: 0, maximum: 1000, description: "X scale ratio." },
+        scaleY: { type: "number", exclusiveMinimum: 0, maximum: 1000, description: "Y scale ratio." },
+        layer: { ...layer, default: "A-FURN" },
+        attributes: {
+          type: "object",
+          additionalProperties: true,
+          description: "Attribute values by tag, e.g. {\"NAME\": \"Bedroom\"}.",
+        },
+      },
+      required: ["name", "x", "y"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "copy_entities",
+    description:
+      "Copy the entities with the given handles by dx, dy, count times (copy n is offset n times dx, dy), e.g. a row of chairs. Returns the new handles." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        handles: handlesSchema,
+        dx: coordinate("Displacement along X per copy."),
+        dy: coordinate("Displacement along Y per copy."),
+        count: { type: "integer", minimum: 1, maximum: 100, default: 1, description: "Number of copies." },
+      },
+      required: ["handles", "dx", "dy"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "rotate_entities",
+    description: "Rotate the entities with the given handles about a base point by an angle in degrees (counter-clockwise)." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        handles: handlesSchema,
+        baseX: coordinate("Base point X."),
+        baseY: coordinate("Base point Y."),
+        angle: angle("Rotation in degrees."),
+      },
+      required: ["handles", "baseX", "baseY", "angle"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "mirror_entities",
+    description:
+      "Mirror the entities with the given handles about the line through (x1, y1) and (x2, y2). keepOriginal (default true) makes mirrored copies; false flips the originals. Text is mirrored as geometry, so mirror text separately or re-add it." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        handles: handlesSchema,
+        x1: coordinate("Mirror line first point X."),
+        y1: coordinate("Mirror line first point Y."),
+        x2: coordinate("Mirror line second point X."),
+        y2: coordinate("Mirror line second point Y."),
+        keepOriginal: { type: "boolean", default: true, description: "Keep the originals and add mirrored copies." },
+      },
+      required: ["handles", "x1", "y1", "x2", "y2"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "floor_plan_summary",
+    description:
+      "Summarize the floor plan in the active drawing: saved plan type, model-space extents with width and height, and entity counts by layer, by type, and by block name (furniture, fixtures, doors). Read-only. Call this first to understand a floor plan before listing entities. Set `units` to get lengths back in that unit.",
+    inputSchema: {
+      type: "object",
+      properties: { units },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "query_region",
+    description:
+      "List model-space entities inside a rectangular region of the floor plan, tested by bounding box. mode \"crossing\" (default) returns entities whose bounding box overlaps the region; \"inside\" returns only those whose bounding box lies fully within it. Read-only. Same entity format as list_entities." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        minX: coordinate("Region lower-left X."),
+        minY: coordinate("Region lower-left Y."),
+        maxX: coordinate("Region upper-right X."),
+        maxY: coordinate("Region upper-right Y."),
+        mode: { type: "string", enum: ["crossing", "inside"], default: "crossing", description: "Overlap or full containment." },
+        layer: { ...layer, default: undefined, description: "Only entities on this layer." },
+        limit: { type: "integer", minimum: 1, maximum: 1000, default: 200, description: "Maximum entities returned." },
+      },
+      required: ["minX", "minY", "maxX", "maxY"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "set_floor_plan_type",
+    description:
+      "Save the floor plan type in the active drawing so later sessions know what kind of plan it is. Stored inside the DWG; undo with UNDO in AutoCAD. Ask the user if the type is unclear.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        planType: {
+          type: "string",
+          enum: ["architectural", "furniture", "electrical", "plumbing", "reflected_ceiling", "other"],
+          description: "Kind of floor plan.",
+        },
+      },
+      required: ["planType"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "detect_rooms",
+    description:
+      "Find the rooms of the floor plan as the closed areas formed by walls on the given layers. Doorway gaps up to maxOpeningWidth are closed along the wall line, tiny gaps up to maxDraftingGap are closed in any direction, and remaining open wall ends are flagged. Each room returns net area (holes such as columns removed), area in square metres, perimeter, outline, the text labels and room-tag attributes inside it (its name when there is exactly one), and the blocks inside it. Read-only. Use floor_plan_summary first to find the wall layers. Defaults are 1.2 m, 2 cm, 0.5 m and 1 m²; unitless drawings need them passed explicitly." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        wallLayers: roomLayers("Layers holding walls and any room separation lines."),
+        labelLayers: roomLayers("Only use text and room tags on these layers as room labels. Omit to use every non-wall layer."),
+        ...roomDetectionOptions,
+      },
+      required: ["wallLayers"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "save_rooms",
+    description:
+      "Run detect_rooms with the same arguments and save every room in the drawing (Named Objects Dictionary entry CLAUDE_BRIDGE_ROOMS) with an ID, name, status, outline, net and gross area, perimeter, source wall handles with geometry fingerprints, and timestamps. Rooms matching saved ones (by unique label name, then by outline overlap) keep their IDs; saved rooms no longer found are removed. Rooms with several labels are saved with status needs_review. confirmRoomIds marks rooms confirmed only after the user checked them; it is refused for needs_review rooms or when the plan has open wall ends, and then nothing is saved. Undo with UNDO in AutoCAD." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        wallLayers: roomLayers("Layers holding walls and any room separation lines."),
+        labelLayers: roomLayers("Only use text and room tags on these layers as room labels. Omit to use every non-wall layer."),
+        ...roomDetectionOptions,
+        confirmRoomIds: {
+          type: "array",
+          items: roomIdSchema,
+          maxItems: MAX_HANDLES,
+          description: "IDs of rooms the user has checked and confirmed. Only pass IDs the user explicitly confirmed.",
+        },
+      },
+      required: ["wallLayers"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "get_rooms",
+    description:
+      "Return the rooms saved in the drawing by save_rooms. Each room is checked against the drawing: if any of its source walls was erased, moved, reshaped or put on another layer, its status is stale with the reasons; run save_rooms again to update it. Statuses: ok, needs_review, confirmed, stale. Only confirmed rooms have been checked by the user. Read-only. Set `units` to get lengths and areas back in that unit; square metres are always included.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        includeVertices: { type: "boolean", description: "Include each room outline. Defaults to true." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "export_room_schedule",
+    description:
+      "Write the saved rooms as a CSV room schedule: room ID, name, status, net and gross area in m², perimeter in m, and warnings. Rooms are checked for staleness first; needs_review and stale rooms keep that status in the file and are never shown as confirmed. Writes to path, or next to the saved DWG as <drawing>-rooms.csv. Refuses to replace an existing file unless overwrite is true; ask the user first. The file is not undone by UNDO.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          minLength: 4,
+          maxLength: 260,
+          pattern: "^[A-Za-z]:\\\\.*\\.[Cc][Ss][Vv]$",
+          description: "Full Windows path of the CSV file to write, e.g. C:\\Projects\\rooms.csv. Omit to write next to the drawing.",
+        },
+        overwrite: { type: "boolean", description: "Replace the file if it exists. Defaults to false." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
   },
 ];
 

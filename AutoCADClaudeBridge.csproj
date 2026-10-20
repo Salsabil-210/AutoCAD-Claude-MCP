@@ -10,6 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The geometry tests are a separate console project. -->
+    <Compile Remove="tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="AcCoreMgd">
       <HintPath>$(AutoCADInstallDir)\AcCoreMgd.dll</HintPath>
       <Private>false</Private>
