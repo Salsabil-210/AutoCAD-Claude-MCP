@@ -105,6 +105,34 @@
       "description": "Draw one ceiling band part (chandelier ring, frame, lit band) as a production drawing: plan with face letters, edge and thickness dimensions, radius notes, title and developed length, plus one elevation per face (equal faces grouped), with an optional LED light strip. points are the outer sharp corners of a convex outline. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
     },
     {
+      "name": "draw_bent_bar_part",
+      "description": "Draw one bent bar part (decorative arrow, swoosh) as a production drawing: plan of a strip following straight runs and tangent arcs, plus the developed elevation at full cut length with bend lines, run lengths and arrowheads. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "check_production_book",
+      "description": "Check a ceiling feature part spec before drawing or issuing it, with the drawing tools' own geometry: errors (cannot be drawn), warnings (must be resolved before issuing) and each part's face and developed lengths. Draws nothing."
+    },
+    {
+      "name": "draw_assembly_plan",
+      "description": "Draw the production book's assembly plan: all part outlines in their hanging positions, callouts, hanger points and overall size. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "draw_sheet",
+      "description": "Draw one production book sheet around existing drawing: scaled A3/A4 landscape frame, Trust-Lines title block with sign-off boxes, material legend and DRAFT marking, saved for plot_sheets_pdf. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
+      "name": "list_sheets",
+      "description": "List the production book sheets saved in the drawing, in book order. Read-only."
+    },
+    {
+      "name": "plot_sheets_pdf",
+      "description": "Plot saved sheets to one multi-page PDF (DWG To PDF, full-bleed A3/A4) in sheet order. Never overwrites unless overwrite is true."
+    },
+    {
+      "name": "add_face_graphic",
+      "description": "Add cut letters or chevrons to one band face elevation drawn by draw_band_part, with position dimensions and a specification note. Refuses graphics that run off the face. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
       "name": "insert_block",
       "description": "Insert one block reference by name: a block already defined in the drawing, or <name>.dwg from the bridge block library folder (%LOCALAPPDATA%\\AutoCADClaudeBridge\\blocks). Scales are ratios and are not unit-converted. attributes sets attribute values by tag. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
     },

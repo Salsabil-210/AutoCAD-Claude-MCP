@@ -203,8 +203,9 @@ internal static partial class BridgeHost
                 );
                 Queue.Enqueue(new PendingRequest(request, completion));
 
+                // Plotting a production book can take minutes; everything else is quick.
                 var response = await completion.Task.WaitAsync(
-                    TimeSpan.FromSeconds(30),
+                    TimeSpan.FromSeconds(request.Tool == "plot_sheets_pdf" ? 300 : 30),
                     cancellationToken
                 );
                 await writer.WriteLineAsync(response);
@@ -267,6 +268,13 @@ internal static partial class BridgeHost
             "rotate_entities" => RotateEntities(request.Arguments),
             "mirror_entities" => MirrorEntities(request.Arguments),
             "draw_band_part" => DrawBandPart(request.Arguments),
+            "draw_bent_bar_part" => DrawBentBarPart(request.Arguments),
+            "add_face_graphic" => AddFaceGraphic(request.Arguments),
+            "draw_assembly_plan" => DrawAssemblyPlan(request.Arguments),
+            "draw_sheet" => DrawSheet(request.Arguments),
+            "list_sheets" => ListSheets(),
+            "check_production_book" => CheckProductionBook(request.Arguments),
+            "plot_sheets_pdf" => PlotSheetsPdf(request.Arguments),
             "floor_plan_summary" => FloorPlanSummary(request.Arguments),
             "query_region" => QueryRegion(request.Arguments),
             "set_floor_plan_type" => SetFloorPlanType(request.Arguments),

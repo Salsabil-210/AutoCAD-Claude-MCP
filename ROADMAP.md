@@ -95,8 +95,17 @@ elevation, dimensions, legend, title block). Job 435 is the test case.
 | C1 | Part spec format and the `ceiling-feature-production` skill | ✅ |
 | C1 | `draw_band_part`: rings, frames and lit bands with grouped elevations | ✅ |
 | C1 | Rebuild 435 sheets 2 and 3 from the spec in AutoCAD | 🚧 needs a run in AutoCAD |
-| C2 | `draw_bent_bar_part`: arrows and swooshes, developed length, arrow/chevron ends | ⏳ |
-| C2 | `add_face_graphic`: cut letters, chevrons, logos on band elevations | ⏳ |
-| C3 | `draw_sheet`: Trust-Lines frame and title block, material legend | ⏳ needs the title block DWG |
-| C3 | `draw_assembly_plan`, `check_production_book`, `plot_sheets_pdf` | ⏳ |
-| C4 | Render reading tested on new jobs | ⏳ needs more past books |
+| C2 | `draw_bent_bar_part`: arrows and swooshes, developed length, arrowheads | ✅ |
+| C2 | `add_face_graphic`: cut letters and chevrons on band elevations | ✅ |
+| C2 | Logos on band faces (block from the library), chevron ends on bent bars | ⏳ |
+| C2 | Rebuild 435 sheet 4 and the graphics on sheets 2 and 3 in AutoCAD | 🚧 needs a run in AutoCAD |
+| C3 | `draw_sheet`: Trust-Lines frame and title block, material legend, saved sheets | ✅ rebuilt from the 435 PDF; replace with the office title block DWG when available |
+| C3 | `draw_assembly_plan`, `check_production_book`, `list_sheets`, `plot_sheets_pdf` | ✅ |
+| C3 | `TRUSTLINES_LOGO` block in the block library | ⏳ needs the logo DWG |
+| C3 | Plot the 435 book to PDF in AutoCAD | 🚧 needs a run in AutoCAD |
+| C4 | Render-reading method, provisional standards, past-job example format, 435 render notes | ✅ |
+| C4 | `source.estimated` tracked in the spec and warned by `check_production_book` | ✅ |
+| C4 | Skill packaged as a Claude Desktop upload | ✅ |
+| C4 | Two or more further past jobs (render + issued book) in `examples/` | ⏳ needs the office's jobs |
+| C4 | Office review of `standards.md` | ⏳ |
+| C4 | Render reading tested on a new job, end to end | ⏳ |

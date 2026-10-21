@@ -617,6 +617,262 @@ const tools = [
     annotations: drawingHints,
   },
   {
+    name: "draw_bent_bar_part",
+    description:
+      "Draw one bent bar part as a production drawing: a strip of sheet standing on edge that follows straight runs and arcs in plan (decorative arrow, swoosh). The path is the strip's centreline, starting at start and heading startAngle; each arc turns left or right by angle (or by its centreline length) at radius, tangent to the run before it. Draws the plan (outline, run dimensions on the outside of the turn, bend notes, START/END, overall width and depth, title, summary) and to its right the developed elevation: the strip unrolled to its full cut length, bend lines with numbers, chained run lengths, height, and arrowheads. An arrowhead is two 45 degree arms as wide as the strip is tall whose outer edges span arrowHeight. Returns the developed length, every piece with its start distance along the strip, and the drawing extents." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        name: { ...text("Part name shown as the sheet title, e.g. \"Decorative arrow\"."), minLength: 1, maxLength: 80 },
+        quantity: { type: "integer", minimum: 1, maximum: 10000, default: 1, description: "How many of this part to make." },
+        start: { ...point, description: "Start point of the centreline." },
+        startAngle: angle("Direction of the first step in degrees, 0 = +X, 90 = +Y. Default 0."),
+        segments: {
+          type: "array",
+          minItems: 1,
+          maxItems: 50,
+          description: "Path steps in order.",
+          items: {
+            type: "object",
+            properties: {
+              kind: { type: "string", enum: ["line", "arc"], description: "Straight run or tangent arc." },
+              length: size("Line: run length. Arc: length along the centreline (instead of angle)."),
+              radius: size("Arc: centreline radius; must be more than half the thickness."),
+              angle: { type: "number", exclusiveMinimum: 0, maximum: 359.9, description: "Arc: how far it turns, in degrees (instead of length)." },
+              turn: { type: "string", enum: ["left", "right"], default: "left", description: "Arc: turn direction seen walking along the path." },
+            },
+            required: ["kind"],
+            additionalProperties: false,
+          },
+        },
+        thickness: size("Strip thickness seen in plan."),
+        height: size("Strip height seen in elevation."),
+        ends: {
+          type: "object",
+          properties: {
+            start: { type: "string", enum: ["plain", "arrow"], default: "plain", description: "Shape of the start end." },
+            end: { type: "string", enum: ["plain", "arrow"], default: "plain", description: "Shape of the end end." },
+          },
+          additionalProperties: false,
+          description: "End shapes in the developed elevation.",
+        },
+        arrowHeight: size("Overall height of an arrowhead, tip arm to tip arm. Required when an end is an arrow; must exceed 2.414 x height."),
+        fillColor: { ...color, description: "AutoCAD Color Index for the solid fill in plan and elevation (e.g. 41 cream). Omit for outline only." },
+        textHeight: size("Sheet text height. Default: 1/40 of the part's largest size."),
+        barLayer: { ...layer, default: "SIGN-BAND" },
+        dimensionLayer: { ...layer, default: "SIGN-DIM" },
+        annotationLayer: { ...layer, default: "SIGN-ANNO" },
+      },
+      required: ["name", "start", "segments", "thickness", "height"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "add_face_graphic",
+    description:
+      "Add cut letters or chevrons to one band face elevation drawn by draw_band_part. Pass elevation exactly as draw_band_part returned it in elevations[] (x, y of the bottom-left corner, length, height) and the same textHeight. Draw the band with groupFaces false when faces sharing a length carry different graphics. letters: text, letterHeight, at (distance from the face's left end to the first letter; omit to centre), finish. chevrons: at (left end to the row's left-most point), count, stroke (width along the face), pitch (start to start, default 2 x stroke), depth (how far the point leads the back, default half the chevron height), chevronHeight (default the band height; taller ones stand proud of the band top and bottom equally), pointing. Refuses graphics that run off the face (or, for letters, off the band height) and draws nothing then. Adds chained position dimensions above the face and a specification note below." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        elevation: {
+          type: "object",
+          description: "The face elevation from draw_band_part's elevations[].",
+          properties: {
+            x: coordinate("Left end of the elevation (bottom-left corner X)."),
+            y: coordinate("Band bottom edge (bottom-left corner Y)."),
+            length: size("Face length."),
+            height: size("Band height."),
+          },
+          required: ["x", "y", "length", "height"],
+          additionalProperties: false,
+        },
+        kind: { type: "string", enum: ["letters", "chevrons"], description: "What to add." },
+        text: { ...text("letters: the text, e.g. COFFEE."), minLength: 1, maxLength: 200 },
+        letterHeight: size("letters: capital letter height."),
+        finish: { type: "string", enum: ["cut_through", "engraved", "applied"], default: "cut_through", description: "letters: how they are made." },
+        at: { type: "number", minimum: 0, maximum: MAX_SIZE, description: "Distance from the face's left end to the graphic's left-most point." },
+        count: { type: "integer", minimum: 1, maximum: 20, default: 2, description: "chevrons: how many." },
+        stroke: size("chevrons: width of each chevron measured along the face."),
+        pitch: size("chevrons: distance from one chevron's start to the next."),
+        depth: { type: "number", minimum: 0, maximum: MAX_SIZE, description: "chevrons: how far the point leads the back corners." },
+        chevronHeight: size("chevrons: overall height, centred on the band."),
+        pointing: { type: "string", enum: ["right", "left"], default: "right", description: "chevrons: direction they point." },
+        color: { ...color, description: "AutoCAD Color Index for the graphic. Default 7 (white/black)." },
+        textHeight: size("Sheet text height; pass draw_band_part's textHeight."),
+        graphicLayer: { ...layer, default: "SIGN-GRAPHIC" },
+        dimensionLayer: { ...layer, default: "SIGN-DIM" },
+        annotationLayer: { ...layer, default: "SIGN-ANNO" },
+      },
+      required: ["elevation", "kind"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "check_production_book",
+    description:
+      "Check a ceiling feature part spec (the JSON from the ceiling-feature-production skill) before drawing or issuing it. Rebuilds every band and bent bar with the drawing tools' own geometry and reports findings: error = cannot be drawn as specified (radii that do not fit, graphics off a face or taller than the band, unknown faces or materials, equal faces sharing an elevation with different graphics); warning = must be resolved before issuing (RAL TBD, unconfirmed parts, values still listed in source.estimated, open questions, graphics running onto corner fillets, no assembly or hangers); info. Returns drawable, issuable, the findings and each part's face lengths and developed length. Draws nothing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        spec: { type: "object", description: "The whole part spec: job, materials, parts, assembly, openQuestions." },
+      },
+      required: ["spec"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "draw_assembly_plan",
+    description:
+      "Draw the production book's assembly plan: every part's plan outline in its hanging position (each part's own geometry shifted by at), callouts naming each part on the right, hanger points H1, H2... and overall width and depth. Bands take points, cornerRadius or cornerRadii and thickness as in draw_band_part; bent bars take start, startAngle, segments and thickness as in draw_bent_bar_part. Returns the extents to pass to draw_sheet." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        title: { ...text("Plan title, e.g. \"CHANDELIER PLAN\". Default PLAN."), maxLength: 80 },
+        parts: {
+          type: "array",
+          minItems: 1,
+          maxItems: 30,
+          description: "Parts in the assembly.",
+          items: {
+            type: "object",
+            properties: {
+              label: { ...text("Callout text, e.g. \"Decorative arrow\"."), minLength: 1, maxLength: 80 },
+              type: { type: "string", enum: ["band", "bent_bar"], description: "Part type." },
+              at: { ...point, description: "Offset added to the part's own coordinates. Default 0, 0." },
+              points: { type: "array", items: point, minItems: 3, maxItems: 26, description: "band: outer sharp corners." },
+              cornerRadius: { type: "number", minimum: 0, maximum: MAX_SIZE, description: "band: outer fillet radius." },
+              cornerRadii: { type: "array", items: { type: "number", minimum: 0, maximum: MAX_SIZE }, minItems: 3, maxItems: 26, description: "band: radius per corner." },
+              start: { ...point, description: "bent_bar: centreline start." },
+              startAngle: angle("bent_bar: first direction in degrees."),
+              segments: {
+                type: "array",
+                minItems: 1,
+                maxItems: 50,
+                description: "bent_bar: path steps as in draw_bent_bar_part.",
+                items: {
+                  type: "object",
+                  properties: {
+                    kind: { type: "string", enum: ["line", "arc"] },
+                    length: size("Run length, or arc length along the centreline."),
+                    radius: size("Arc centreline radius."),
+                    angle: { type: "number", exclusiveMinimum: 0, maximum: 359.9 },
+                    turn: { type: "string", enum: ["left", "right"] },
+                  },
+                  required: ["kind"],
+                  additionalProperties: false,
+                },
+              },
+              thickness: size("Band or bar thickness in plan."),
+              fillColor: { ...color, description: "AutoCAD Color Index fill. Omit for outline only." },
+            },
+            required: ["label", "type", "thickness"],
+            additionalProperties: false,
+          },
+        },
+        hangers: { type: "array", items: point, maxItems: 50, description: "Hanger points in assembly coordinates." },
+        textHeight: size("Sheet text height. Default: 1/40 of the assembly's largest size."),
+        bandLayer: { ...layer, default: "SIGN-BAND" },
+        dimensionLayer: { ...layer, default: "SIGN-DIM" },
+        annotationLayer: { ...layer, default: "SIGN-ANNO" },
+      },
+      required: ["parts"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "draw_sheet",
+    description:
+      "Draw one production book sheet around drawing already in model space: a landscape A3 (or A4) frame scaled so extents fit, the Trust-Lines title block (dark bar with project number, site and title; date; the three empty sign-off boxes ÜRETİM KOORDİNATÖRÜ, ÜRETİM SORUMLUSU, PROJE YÖNETİCİSİ; sheet number, sheet name and units; the TRUSTLINES_LOGO block from the drawing or block library, or a text placeholder), a material legend with colour swatches and the hanger symbol, and DRAFT — NOT FOR PRODUCTION when draft is true. Pass the extents a part or assembly tool returned. The sheet is saved in the drawing so plot_sheets_pdf can plot the book in sheet-number order. Always pass draft: true while check_production_book reports the spec is not issuable." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        extents: {
+          type: "object",
+          description: "Area the sheet must hold, e.g. a part tool's extents.",
+          properties: { min: point, max: point },
+          required: ["min", "max"],
+          additionalProperties: false,
+        },
+        job: {
+          type: "object",
+          properties: {
+            number: { ...text("Project number, e.g. 435."), maxLength: 20 },
+            site: { ...text("Site address line."), maxLength: 120 },
+            title: { ...text("Feature title, e.g. CHANDELIER."), maxLength: 60 },
+            date: { ...text("Issue date as it should print, e.g. 07.07.2026."), maxLength: 20 },
+          },
+          additionalProperties: false,
+        },
+        sheetName: { ...text("What this sheet shows, e.g. \"Decorative arrow\" or \"Plan\"."), minLength: 1, maxLength: 60 },
+        sheetNumber: { type: "integer", minimum: 1, maximum: 999, default: 1, description: "Position in the book." },
+        sheetCount: { type: "integer", minimum: 1, maximum: 999, description: "Total sheets in the book." },
+        paper: { type: "string", enum: ["A3", "A4"], default: "A3", description: "Landscape paper size." },
+        materials: {
+          type: "array",
+          maxItems: 8,
+          description: "Legend rows.",
+          items: {
+            type: "object",
+            properties: {
+              name: { ...text("Material or finish name."), maxLength: 60 },
+              ral: { ...text("RAL code, or TBD."), maxLength: 20 },
+              aci: { ...color, description: "Swatch colour (AutoCAD Color Index)." },
+            },
+            additionalProperties: false,
+          },
+        },
+        hanger: { type: "boolean", default: true, description: "Show the hanger symbol in the legend." },
+        draft: { type: "boolean", default: false, description: "Print DRAFT — NOT FOR PRODUCTION." },
+        logoBlock: { ...layer, default: "TRUSTLINES_LOGO", description: "Logo block name, from the drawing or the block library." },
+        sheetLayer: { ...layer, default: "SIGN-SHEET" },
+      },
+      required: ["extents", "job", "sheetName"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
+    name: "list_sheets",
+    description:
+      "List the production book sheets saved in the drawing by draw_sheet, in book order, with their frame (drawing units) and whether the frame still exists. Read-only.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "plot_sheets_pdf",
+    description:
+      "Plot saved sheets to one multi-page PDF with AutoCAD's DWG To PDF driver, each sheet fitted to full-bleed A3 or A4 landscape, in sheet-number order. Omit sheetIds for every saved sheet. Sheets whose frame was erased are skipped and reported. Omit path to write <drawing>-production-book.pdf next to a saved drawing. Never overwrites unless overwrite is true; ask the user first. Can take a few minutes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          minLength: 5,
+          maxLength: 260,
+          pattern: "^[A-Za-z]:\\\\.*\\.[Pp][Dd][Ff]$",
+          description: "Full Windows path of the PDF, e.g. C:\\Projects\\435-book.pdf.",
+        },
+        sheetIds: {
+          type: "array",
+          items: { type: "string", pattern: "^S[0-9]{1,7}$" },
+          maxItems: 999,
+          description: "Sheets to plot, such as S1, S2. Default all.",
+        },
+        overwrite: { type: "boolean", description: "Replace the file if it exists. Defaults to false." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+  },
+  {
     name: "insert_block",
     description:
       "Insert one block reference by name: a block already defined in the drawing, or <name>.dwg from the bridge block library folder (%LOCALAPPDATA%\\AutoCADClaudeBridge\\blocks). Scales are ratios and are not unit-converted. attributes sets attribute values by tag." + UNIT_RULE,
@@ -917,15 +1173,19 @@ function writeMessage(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
+// Plotting a production book can take minutes; the plug-in allows it 300 s.
+const SLOW_TOOLS = new Set(["plot_sheets_pdf"]);
+
 function callAutoCAD(tool, args) {
   return new Promise((resolve, reject) => {
     const token = loadToken();
     const socket = net.createConnection({ host: HOST, port: PORT });
     let response = "";
+    const seconds = SLOW_TOOLS.has(tool) ? 310 : 30;
     const timeout = setTimeout(() => {
       socket.destroy();
-      reject(new Error("AutoCAD did not respond within 30 seconds."));
-    }, 30000);
+      reject(new Error(`AutoCAD did not respond within ${seconds} seconds.`));
+    }, seconds * 1000);
 
     socket.setEncoding("utf8");
     socket.on("connect", () => {

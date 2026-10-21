@@ -7,7 +7,7 @@ An open-source, local MCP bridge that lets Claude Desktop inspect and automate t
 
 ## What it can do
 
-The bridge exposes thirty-two Claude tools.
+The bridge exposes thirty-nine Claude tools.
 
 **Inspect**
 
@@ -97,6 +97,13 @@ Records live in a dictionary `CLAUDE_BRIDGE_ROOMS` in the Named Objects Dictiona
 **Ceiling features**
 
 - `draw_band_part` — draw one ceiling band part (chandelier ring, frame, lit band) as a production drawing: plan and one elevation per face. See [Ceiling feature production](#ceiling-feature-production).
+- `draw_bent_bar_part` — draw one bent bar part (decorative arrow, swoosh): plan of the bent strip and its developed elevation at full cut length, with bends and arrowheads.
+- `add_face_graphic` — add cut letters or chevrons to a band face elevation, with position dimensions.
+- `draw_assembly_plan` — all parts in plan in their hanging positions, with callouts, hanger points and overall size.
+- `draw_sheet` — a Trust-Lines production sheet (frame, title block, sign-off boxes, material legend, DRAFT marking) around drawn parts, saved for plotting.
+- `list_sheets` — the saved sheets in book order. Read-only.
+- `check_production_book` — check a whole part spec before drawing or issuing it. Read-only.
+- `plot_sheets_pdf` — plot the saved sheets to one multi-page PDF.
 
 **Annotate**
 
@@ -147,7 +154,17 @@ Furniture symbols are defined once per drawing at a standard size in metres, cen
 
 ## Ceiling feature production
 
-Suspended ceiling features (rings, frames, lit bands, bent arrows, cut letters) are drawn from a **part spec**: a JSON description of the job and its parts that Claude fills from a render and the designer confirms before anything is drawn. The skill in [`skills/ceiling-feature-production`](skills/ceiling-feature-production/SKILL.md) holds the workflow, the spec format and a worked example (job 435).
+Suspended ceiling features (rings, frames, lit bands, bent arrows, cut letters) are drawn from a **part spec**: a JSON description of the job and its parts that Claude fills from a render and the designer confirms before anything is drawn. The skill in [`skills/ceiling-feature-production`](skills/ceiling-feature-production/SKILL.md) holds the workflow and its references:
+
+| File | What it holds |
+| --- | --- |
+| [`SKILL.md`](skills/ceiling-feature-production/SKILL.md) | The workflow: read the render, write and check the spec, confirm with the designer, draw, make sheets, plot. |
+| [`references/reading-renders.md`](skills/ceiling-feature-production/references/reading-renders.md) | How to read a render into a draft spec: what a render can and cannot give, a seven-step method, how to ask the designer, common traps. |
+| [`references/standards.md`](skills/ceiling-feature-production/references/standards.md) | Default sizes to propose when none are given. Provisional: seeded from job 435 only, for the office to confirm. |
+| [`references/part-spec.md`](skills/ceiling-feature-production/references/part-spec.md) | The part spec format, including `source.estimated` for values that are estimates rather than the designer's. |
+| [`examples/`](skills/ceiling-feature-production/examples/README.md) | Past jobs: final spec plus render notes. Job 435 is the first; add each issued job. |
+
+`package.ps1` also builds `dist/ceiling-feature-production-skill.zip` for upload in Claude Desktop (Settings > Capabilities > Skills).
 
 `draw_band_part` draws one band part:
 
@@ -161,14 +178,51 @@ Geometry rules:
 - Radii that do not fit on a face, or a band too thick for its outline, are refused with the face named.
 - Dimensions read in the call's `units` with one decimal, whatever the drawing's units (`DIMLFAC` is set per dimension).
 
-The result returns each face's edge and flat length, the corner radii, the outer, inner and centreline perimeters, the elevation groups, and the drawing extents for placing the next part.
+The result returns each face's edge and flat length, the corner radii, the outer, inner and centreline perimeters, each elevation's bottom-left corner, length and height, the sheet `textHeight`, and the drawing extents for placing the next part.
+
+`draw_bent_bar_part` draws one bent bar part, such as the decorative arrow:
+
+- **Path** — the strip's centreline from `start`, heading `startAngle`, as `segments`: `line` runs (`length`) and tangent `arc`s (`radius`, `turn` left or right, and `angle` in degrees or `length` along the centreline). An arc radius at or below half the thickness is refused, because the inside of the bend would fold over itself.
+- **Plan** — the strip outline (optional fill), run dimensions on the outside of the overall turn, a note per bend (radius, angle, direction, arc length), START and END, overall width and depth, title and a summary listing every bend's position along the strip.
+- **Developed elevation** — the strip unrolled to its cut length, with bend lines and numbers, chained run lengths, total length, height, and arrowheads. An arrowhead is two 45° arms as wide as the strip is tall; their outer edges span `arrowHeight`, which must exceed 2.414 × the height so the arms clear the shaft.
+
+`add_face_graphic` adds graphics to one face elevation drawn by `draw_band_part`. It takes the elevation exactly as `draw_band_part` returned it, so it keeps no state:
+
+- **Letters** — `text`, `letterHeight`, `at` (from the face's left end; omit to centre) and `finish` (`cut_through`, `engraved`, `applied`). The actual text extents are checked: letters that run off the face or the band height are refused and nothing is drawn.
+- **Chevrons** — `at`, `count`, `stroke`, `pitch`, `depth`, `chevronHeight` (centred on the band; taller chevrons stand proud of the band top and bottom equally, as on job 435) and `pointing`.
+- Both add chained position dimensions above the face and a specification note below it. Draw the band with `groupFaces: false` when faces of equal length carry different graphics.
 
 | Layer | Contents |
 | --- | --- |
-| `SIGN-BAND` | Band outlines and fills |
+| `SIGN-BAND` | Band and bar outlines and fills |
 | `SIGN-LIGHT` | LED strip lines and fill |
+| `SIGN-GRAPHIC` | Letters and chevrons on band faces |
 | `SIGN-DIM` | Dimensions |
-| `SIGN-ANNO` | Titles, face letters, markers, notes |
+| `SIGN-ANNO` | Titles, face letters, markers, bend lines, notes, assembly callouts and hangers |
+| `SIGN-SHEET` | Sheet frames, title blocks and legends |
+
+### Checking and issuing the book
+
+`check_production_book` takes the whole part spec and rebuilds every part with the same geometry the drawing tools use, without drawing. It reports:
+
+- **errors** — the spec cannot be drawn: radii that do not fit, graphics off a face or taller than the band, a face or material that does not exist, equal faces that share an elevation but carry different graphics, bad quantities, assembly entries naming unknown parts;
+- **warnings** — the book must not be issued yet: RAL colours `TBD`, parts the designer has not confirmed, open questions, graphics that run onto a corner fillet, no assembly or hanger points, missing title-block fields;
+- **info** — such as each bent bar's developed length.
+
+`drawable` is true when there are no errors, `issuable` when there are no errors or warnings.
+
+### Sheets and the PDF book
+
+`draw_sheet` draws a sheet in model space around the `extents` a part or assembly tool returned, scaled so they fit a landscape A3 (or A4) sheet:
+
+- **Title strip** — a dark bar with the project number, site and feature title; the date; three empty sign-off boxes (ÜRETİM KOORDİNATÖRÜ, ÜRETİM SORUMLUSU, PROJE YÖNETİCİSİ); the sheet number, sheet name and units; and the logo.
+- **Logo** — the `TRUSTLINES_LOGO` block when the drawing or the block library (`%LOCALAPPDATA%\AutoCADClaudeBridge\blocks\TRUSTLINES_LOGO.dwg`) has it, scaled into the logo box; otherwise a text placeholder.
+- **Legend** — one row per material with its colour swatch and RAL code, and the hanger symbol.
+- **DRAFT — NOT FOR PRODUCTION** across the top when `draft` is true.
+
+Each sheet is saved in the drawing (`CLAUDE_BRIDGE_SHEETS` in the Named Objects Dictionary, one JSON Xrecord per sheet `S1`, `S2`, ...) with its frame and frame handle. `list_sheets` lists them in book order and flags sheets whose frame was erased.
+
+`plot_sheets_pdf` plots the saved sheets, or the `sheetIds` given, into one multi-page PDF with AutoCAD's `DWG To PDF.pc3`: each frame is a plot window fitted to full-bleed A3 or A4 landscape, in sheet-number order, using `acad.ctb` when it is installed. It never overwrites a file unless `overwrite` is true, and allows up to five minutes.
 
 ## Units
 

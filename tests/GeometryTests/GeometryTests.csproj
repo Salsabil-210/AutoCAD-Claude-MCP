@@ -10,5 +10,8 @@
     <Compile Include="..\..\FloorPlanGeometry.cs" />
     <Compile Include="..\..\WallGeometry.cs" />
     <Compile Include="..\..\BandGeometry.cs" />
+    <Compile Include="..\..\BentBarGeometry.cs" />
+    <Compile Include="..\..\FaceGraphicGeometry.cs" />
+    <Compile Include="..\..\SpecCheck.cs" />
   </ItemGroup>
 </Project>

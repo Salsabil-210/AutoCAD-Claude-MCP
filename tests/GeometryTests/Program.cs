@@ -191,5 +191,126 @@ Check("band 435: fillets on a skewed outline still sum to one turn",
     Near(decorative.Outer.Length - decorative.Faces.Sum(face => face.StraightLength), 2 * Math.PI * 15), decorative.Outer.Length.ToString("0.###"));
 Check("band: ungrouped gives one elevation per face", BandGeometry.GroupFaces(decorative.Faces, false, 0.05).Count == 4);
 
+// Bent bars --------------------------------------------------------------------
+
+double Rad(double degrees) => degrees * Math.PI / 180;
+
+// An L: 50 along +X, a 90 degree left turn at R10, 40 up. 2 thick.
+var lBar = BentBarGeometry.Build(new Vec(0, 0), 0, new List<BarStep>
+{
+    new(BentBarGeometry.Line, 50, 0, 0),
+    new(BentBarGeometry.Arc, 0, 10, Rad(90)),
+    new(BentBarGeometry.Line, 40, 0, 0)
+}, 2);
+Check("bar: developed length = lines + arc", Near(lBar.Length, 90 + 10 * Math.PI / 2), lBar.Length.ToString("0.###"));
+Check("bar: arc ends tangent, path ends at (60, 50)", Near(lBar.Pieces[2].End.X, 60) && Near(lBar.Pieces[2].End.Y, 50) && Near(lBar.Pieces[1].Center.X, 50) && Near(lBar.Pieces[1].Center.Y, 10),
+    $"{lBar.Pieces[2].End} centre {lBar.Pieces[1].Center}");
+Check("bar: bend starts at 50 along the developed length", Near(lBar.Pieces[1].StartDistance, 50) && Near(lBar.Pieces[2].StartDistance, 50 + 5 * Math.PI));
+Check("bar: plan outline is 8 vertices with inner and outer bend arcs", lBar.Outline.Vertices.Count == 8
+    && lBar.Outline.Bulges.Count(bulge => Near(bulge, Math.Tan(Rad(22.5)))) == 1 && lBar.Outline.Bulges.Count(bulge => Near(bulge, -Math.Tan(Rad(22.5)))) == 1,
+    $"{lBar.Outline.Vertices.Count} vertices");
+Check("bar: outline length = both sides + both caps", Near(lBar.Outline.Length, 2 * 90 + 9 * Math.PI / 2 + 11 * Math.PI / 2 + 2 * 2), lBar.Outline.Length.ToString("0.###"));
+Check("bar: plan bounds include the outer bend", Near(lBar.Min.X, 0) && Near(lBar.Min.Y, -1) && Near(lBar.Max.X, 61) && Near(lBar.Max.Y, 50), $"{lBar.Min} {lBar.Max}");
+
+var rightTurn = BentBarGeometry.Build(new Vec(0, 0), 0, new List<BarStep> { new(BentBarGeometry.Arc, 0, 10, Rad(-90)) }, 2);
+Check("bar: right turn goes clockwise", Near(rightTurn.Pieces[0].End.X, 10) && Near(rightTurn.Pieces[0].End.Y, -10), rightTurn.Pieces[0].End.ToString());
+
+Throws("bar: tight bend refused", () => BentBarGeometry.Build(new Vec(0, 0), 0, new List<BarStep> { new(BentBarGeometry.Arc, 0, 1, Rad(90)) }, 2), "half the thickness");
+Throws("bar: zero sweep refused", () => BentBarGeometry.Build(new Vec(0, 0), 0, new List<BarStep> { new(BentBarGeometry.Arc, 0, 10, 0) }, 2), "between 0 and 360");
+
+var plainElevation = BentBarGeometry.Elevation(100, 3, BentBarGeometry.Plain, BentBarGeometry.Plain, 0);
+Check("bar elevation: plain ends give a rectangle", plainElevation.Outline.Vertices.Count == 4 && Near(plainElevation.Max.X, 100) && Near(plainElevation.Max.Y, 3) && Near(plainElevation.Min.Y, 0));
+
+// Job 435, decorative arrow: 106.1 long in elevation A, 3 tall, arrowhead 30.9.
+var arrow = BentBarGeometry.Elevation(106.1, 3, BentBarGeometry.Plain, BentBarGeometry.Arrow, 30.9);
+var tip = arrow.Outline.Vertices.MaxBy(vertex => vertex.X);
+Check("bar 435: arrow tip at the end, on the shaft centre", Near(tip.X, 106.1) && Near(tip.Y, 1.5), tip.ToString());
+Check("bar 435: arrowhead spans 30.9", Near(arrow.Max.Y - arrow.Min.Y, 30.9) && Near(arrow.Outline.Vertices.Max(v => v.Y) - arrow.Outline.Vertices.Min(v => v.Y), 30.9));
+Check("bar 435: arms are 3 wide at 45 degrees", arrow.Outline.Vertices.Count == 9
+    && Near((arrow.Outline.Vertices[2] - arrow.Outline.Vertices[1]).Length, 3), (arrow.Outline.Vertices[2] - arrow.Outline.Vertices[1]).Length.ToString("0.###"));
+var both = BentBarGeometry.Elevation(106.1, 3, BentBarGeometry.Arrow, BentBarGeometry.Arrow, 30.9);
+Check("bar elevation: arrows at both ends mirror", both.Outline.Vertices.Count == 14 && Near(both.Outline.Vertices.Min(v => v.X), 0));
+Throws("bar elevation: flat arrowhead refused", () => BentBarGeometry.Elevation(100, 3, BentBarGeometry.Plain, BentBarGeometry.Arrow, 6), "arrowHeight must be more than");
+Throws("bar elevation: arrows longer than the bar refused", () => BentBarGeometry.Elevation(30, 3, BentBarGeometry.Arrow, BentBarGeometry.Arrow, 30), "too short");
+
+// Face graphics -------------------------------------------------------------------
+
+// Job 435, decorative chandelier face A: 130 long, 10 band, two chevrons
+// 16 tall (3 proud top and bottom) starting 25 from the left end.
+var row = FaceGraphicGeometry.Chevrons(130, 10, 25, 2, 5, 8, 5, 16, true);
+Check("chevrons 435: row runs 25 to 43, 3 proud of the band", Near(row.Start, 25) && Near(row.End, 43) && Near(row.Bottom, -3) && Near(row.Top, 13),
+    $"{row.Start}..{row.End}, {row.Bottom}..{row.Top}");
+Check("chevrons: second one starts one pitch later, tip ahead", Near(row.Chevrons[1].Back, 33) && Near(row.Chevrons[1].Tip, 43) && row.Chevrons[0].Outline.Count == 6);
+var leftRow = FaceGraphicGeometry.Chevrons(130, 10, 25, 2, 5, 8, 5, 16, false);
+Check("chevrons: pointing left mirrors inside the same span", Near(leftRow.Chevrons.Min(chevron => chevron.Tip), 25) && Near(leftRow.Chevrons.Max(chevron => chevron.Back), 43)
+    && leftRow.Chevrons.All(chevron => chevron.Tip < chevron.Back) && Near(leftRow.End, 43));
+Throws("bar elevation: messages use a decimal point", () => BentBarGeometry.Elevation(100, 3, BentBarGeometry.Plain, BentBarGeometry.Arrow, 6), "7.243");
+Throws("chevrons: past the face end refused", () => FaceGraphicGeometry.Chevrons(130, 10, 120, 2, 5, 8, 5, 16, true), "outside the face");
+Throws("chevrons: overlapping refused", () => FaceGraphicGeometry.Chevrons(130, 10, 25, 2, 5, 3, 5, 16, true), "overlap");
+
+// Spec check ----------------------------------------------------------------------
+
+var repository = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+while (repository is not null && !System.IO.Directory.Exists(System.IO.Path.Combine(repository.FullName, "skills")))
+{
+    repository = repository.Parent;
+}
+var examplePath = System.IO.Path.Combine(repository!.FullName, "skills", "ceiling-feature-production", "examples", "435-chandelier.json");
+using var example = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(examplePath));
+var report = SpecCheck.Check(example.RootElement);
+string Findings(SpecReport checkedSpec) => string.Join(" | ", checkedSpec.Findings.Select(finding => $"{finding.Severity} {finding.Part}: {finding.Message}"));
+Check("spec 435: drawable, no errors", report.Drawable && report.Findings.All(finding => finding.Severity != SpecCheck.Error), Findings(report));
+Check("spec 435: not issuable (TBD colours, open questions, unconfirmed)", !report.Issuable
+    && report.Findings.Count(finding => finding.Part == "materials" && finding.Severity == SpecCheck.Warning) == 2
+    && report.Findings.Any(finding => finding.Part == "openQuestions")
+    && report.Findings.Count(finding => finding.Message.Contains("not confirmed")) == 3);
+Check("spec 435: arrow developed length 161.9", report.Parts.Single(part => (string?)part["id"] == "P3")["developedLength"] is double arrowLength && Near(arrowLength, 161.9),
+    report.Parts.Single(part => (string?)part["id"] == "P3")["developedLength"]?.ToString() ?? "none");
+Check("spec 435: chevrons stay on the flat part of each face", !report.Findings.Any(finding => finding.Message.Contains("fillet")), Findings(report));
+
+SpecReport CheckJson(string json)
+{
+    using var document = System.Text.Json.JsonDocument.Parse(json);
+    return SpecCheck.Check(document.RootElement);
+}
+const string BrokenSpec = """
+{
+  "job": { "number": "1", "site": "s", "title": "t", "date": "d", "units": "cm" },
+  "materials": [{ "id": "M1", "ral": "5015", "aci": 5 }],
+  "parts": [
+    { "id": "P1", "type": "band", "name": "Ring", "quantity": 1, "material": "M1",
+      "points": [{ "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 100 }, { "x": 0, "y": 100 }],
+      "cornerRadius": 15, "thickness": 5, "height": 10,
+      "faceGraphics": [
+        { "face": "A", "kind": "chevrons", "at": 2, "count": 2, "stroke": 5, "pitch": 13, "depth": 5, "chevronHeight": 16 },
+        { "face": "E", "kind": "letters", "text": "X", "letterHeight": 5 },
+        { "face": "B", "kind": "letters", "text": "COFFEE", "letterHeight": 20 }
+      ] },
+    { "id": "P2", "type": "bent_bar", "name": "Arrow", "quantity": 0, "material": "M9",
+      "start": { "x": 0, "y": 0 }, "segments": [{ "kind": "arc", "radius": 1, "angle": 90 }], "thickness": 3, "height": 3 }
+  ],
+  "assembly": [{ "part": "P7" }],
+  "openQuestions": []
+}
+""";
+var broken = CheckJson(BrokenSpec);
+bool Has(SpecReport checkedSpec, string severity, string part, string text) =>
+    checkedSpec.Findings.Any(finding => finding.Severity == severity && finding.Part == part && finding.Message.Contains(text));
+Check("spec: broken spec is not drawable", !broken.Drawable && !broken.Issuable, Findings(broken));
+Check("spec: chevrons on the corner fillet warned", Has(broken, SpecCheck.Warning, "P1", "corner fillet"), Findings(broken));
+Check("spec: unknown face refused", Has(broken, SpecCheck.Error, "P1", "face E"));
+Check("spec: letters taller than the band refused", Has(broken, SpecCheck.Error, "P1", "taller than"));
+Check("spec: equal faces with different graphics need groupFaces false", Has(broken, SpecCheck.Error, "P1", "groupFaces: false"), Findings(broken));
+Check("spec: bad quantity and material refused", Has(broken, SpecCheck.Error, "P2", "quantity") && Has(broken, SpecCheck.Error, "P2", "M9"));
+Check("spec: geometry errors come from the drawing geometry", Has(broken, SpecCheck.Error, "P2", "half the thickness"));
+Check("spec: assembly must name real parts", Has(broken, SpecCheck.Error, "assembly", "P7"));
+Check("spec: assembly without hangers warned", Has(broken, SpecCheck.Warning, "hangers", "No hanger points"));
+var hung = CheckJson(BrokenSpec.Replace("\"openQuestions\": []", "\"hangers\": [{ \"x\": 1, \"y\": 2, \"drop\": 120 }, { \"x\": 3, \"y\": 4 }], \"openQuestions\": []"));
+Check("spec: hanger without a drop length warned", Has(hung, SpecCheck.Warning, "hangers", "1 hanger point(s) have no drop") && !Has(hung, SpecCheck.Warning, "hangers", "No hanger points"), Findings(hung));
+Check("spec: not an object", !CheckJson("[]").Drawable);
+var estimatedSpec = CheckJson(BrokenSpec.Replace("\"cornerRadius\": 15, \"thickness\": 5, \"height\": 10,",
+    "\"cornerRadius\": 15, \"thickness\": 5, \"height\": 10, \"source\": { \"render\": \"1\", \"confirmed\": true, \"estimated\": [\"height\", \"cornerRadius\"] },"));
+Check("spec: estimated values block issuing", Has(estimatedSpec, SpecCheck.Warning, "P1", "Estimated, not given by the designer: height, cornerRadius"), Findings(estimatedSpec));
+
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILED");
 return failures;

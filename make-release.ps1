@@ -30,6 +30,8 @@ Copy-Item -LiteralPath (Join-Path $projectDirectory "bin\Release\net10.0-windows
     -Destination (Join-Path $bundleContents "AutoCADClaudeBridge.dll")
 Copy-Item -LiteralPath (Join-Path $distributionDirectory "AutoCAD-Local-Bridge.mcpb") `
     -Destination (Join-Path $releaseDirectory "AutoCAD-Local-Bridge.mcpb")
+Copy-Item -LiteralPath (Join-Path $distributionDirectory "ceiling-feature-production-skill.zip") `
+    -Destination (Join-Path $releaseDirectory "ceiling-feature-production-skill.zip")
 Copy-Item -LiteralPath (Join-Path $projectDirectory "packaging\Install.ps1") `
     -Destination $releaseDirectory
 Copy-Item -LiteralPath (Join-Path $projectDirectory "packaging\Install.cmd") `

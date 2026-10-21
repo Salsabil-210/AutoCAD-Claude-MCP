@@ -12,6 +12,9 @@ Requirements:
 4. Start AutoCAD and open a drawing.
 5. Type CLAUDEBRIDGE. AutoCAD should report that the bridge is running.
 6. In Claude Desktop, enable AutoCAD Local Bridge and call autocad_status.
+7. For ceiling feature production books, upload
+   ceiling-feature-production-skill.zip in Claude Desktop under
+   Settings > Capabilities > Skills.
 
 The installer automatically copies the AutoCAD plug-in to the current user's
 Autodesk ApplicationPlugins folder. Claude still requires approval before a

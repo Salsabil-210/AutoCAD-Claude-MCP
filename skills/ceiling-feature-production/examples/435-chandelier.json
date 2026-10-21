@@ -23,8 +23,9 @@
       "thickness": 5,
       "height": 20,
       "lightStrip": { "height": 3, "offset": 8.5 },
+      "groupFaces": false,
       "faceGraphics": [
-        { "face": "A", "kind": "letters", "text": "COFFEE", "height": 8.5, "cut": "carved" }
+        { "face": "A", "kind": "letters", "text": "COFFEE", "letterHeight": 10, "finish": "cut_through" }
       ],
       "source": { "sheet": 2, "confirmed": false }
     },
@@ -39,10 +40,11 @@
       "thickness": 5,
       "height": 10,
       "lightStrip": null,
+      "groupFaces": false,
       "faceGraphics": [
-        { "face": "A", "kind": "chevron", "count": 2, "at": 25, "width": 13 },
-        { "face": "B", "kind": "chevron", "count": 2, "at": 95.4, "width": 13 },
-        { "face": "C", "kind": "chevron", "count": 2, "at": 82, "width": 13 }
+        { "face": "A", "kind": "chevrons", "at": 25, "count": 2, "stroke": 5, "pitch": 13, "depth": 5, "chevronHeight": 16, "pointing": "right" },
+        { "face": "B", "kind": "chevrons", "at": 95.4, "count": 2, "stroke": 5, "pitch": 13, "depth": 5, "chevronHeight": 16, "pointing": "right" },
+        { "face": "C", "kind": "chevrons", "at": 82, "count": 2, "stroke": 5, "pitch": 13, "depth": 5, "chevronHeight": 16, "pointing": "right" }
       ],
       "source": { "sheet": 3, "confirmed": false }
     },
@@ -52,14 +54,17 @@
       "name": "Decorative arrow",
       "quantity": 1,
       "material": "M2",
-      "path": [
+      "start": { "x": 0, "y": 0 },
+      "startAngle": 12.3,
+      "segments": [
         { "kind": "line", "length": 44.3 },
-        { "kind": "arc", "radius": 15, "length": 27.5 },
+        { "kind": "arc", "radius": 15, "length": 27.5, "turn": "right" },
         { "kind": "line", "length": 90.1 }
       ],
-      "width": 3,
       "thickness": 3,
-      "ends": { "start": "plain", "end": "arrow", "arrowHeight": 30.9 },
+      "height": 3,
+      "ends": { "start": "plain", "end": "arrow" },
+      "arrowHeight": 30.9,
       "source": { "sheet": 4, "confirmed": false }
     }
   ],
@@ -69,9 +74,12 @@
     "Chandelier with light: sheet 2 draws elevations B, C, D at 100.0 long, but face D is 117.9 in plan. The spec uses the plan; confirm.",
     "Chandelier with light: the face A dimensions 25.7 + 50.1 + 25.7 = 101.5 do not match face C (100.0). Is the outline a true parallelogram?",
     "Decorative chandelier: the faces are 130 long on the slant, but sheet 1 gives 130 as the overall horizontal width. Which one is 130?",
-    "Decorative chandelier: what are the 3.0 / 10.0 / 3.0 sizes on the elevations — a 10 band with 3 returns, or a 16 band?",
+    "Decorative chandelier: the spec reads 3.0 / 10.0 / 3.0 as 16 high chevrons standing 3 proud of a 10 band, and 5.0 / 13.0 / 5.0 as stroke 5, pitch 13, depth 5 (23 overall, which fits 25 + 23 + 82 = 130 on face A). Confirm.",
     "Decorative chandelier: there is no elevation D. Does face D carry graphics?",
+    "Chandelier with light: the spec reads 5.0 / 10.0 / 5.0 as 10 high COFFEE letters centred on the 20 band, across the LED strip. Confirm the letter height, their position along face A, and whether they are cut through.",
     "Decorative arrow: plan shows 3.6 thick, elevations show 3.0. Which is right?",
+    "Decorative arrow: sheet 4 elevation A is 106.1 long, but the runs 44.3 + 27.5 + 90.1 give a 161.9 developed (cut) length. Is 106.1 a projected view? The spec cuts at 161.9.",
+    "Decorative arrow: the start direction 12.3° is taken from the chandelier slope (27.7 over 127.0), so the first run follows the top face. Confirm.",
     "Units are not stated on the sheets. Confirm cm.",
     "Hanger positions, drop lengths and the LED product are not given."
   ]

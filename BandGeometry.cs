@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace AutoCADClaudeBridge;
@@ -56,7 +57,9 @@ internal static class BandGeometry
     private const double Epsilon = 1e-9;
     private const double DuplicateTolerance = 1e-7;
 
-    internal static BandPart Build(IReadOnlyList<Vec> corners, IReadOnlyList<double> radii, double thickness)
+    // unitScale converts the lengths in error messages back to the caller's
+    // units (drawing units per caller unit).
+    internal static BandPart Build(IReadOnlyList<Vec> corners, IReadOnlyList<double> radii, double thickness, double unitScale = 1)
     {
         var count = corners.Count;
         if (count < 3 || count > MaxFaces)
@@ -125,9 +128,9 @@ internal static class BandGeometry
             throw new ArgumentException("The outline crosses itself. Band parts must be simple convex outlines.");
         }
 
-        var outer = Offset(corners, radii, directions, lengths, turning, turn, 0, "outer");
-        var inner = Offset(corners, radii, directions, lengths, turning, turn, thickness, "inner");
-        var centre = Offset(corners, radii, directions, lengths, turning, turn, thickness / 2, "centre");
+        var outer = Offset(corners, radii, directions, lengths, turning, turn, 0, "outer", unitScale);
+        var inner = Offset(corners, radii, directions, lengths, turning, turn, thickness, "inner", unitScale);
+        var centre = Offset(corners, radii, directions, lengths, turning, turn, thickness / 2, "centre", unitScale);
 
         var faces = new List<BandFace>(count);
         for (var index = 0; index < count; index++)
@@ -185,6 +188,9 @@ internal static class BandGeometry
         return elevations;
     }
 
+    internal static string Format(double value, double unitScale) =>
+        (value / unitScale).ToString("0.###", CultureInfo.InvariantCulture);
+
     private static double TangentDistance(double radius, double turning) => radius * Math.Tan(turning / 2);
 
     // The outline `inset` inside the outer outline: each edge moves inward by
@@ -197,7 +203,8 @@ internal static class BandGeometry
         double[] turning,
         int turn,
         double inset,
-        string name
+        string name,
+        double unitScale
     )
     {
         var count = corners.Count;
@@ -241,7 +248,7 @@ internal static class BandGeometry
             {
                 throw new ArgumentException(
                     name == "outer"
-                        ? $"The corner radii at both ends of face {(char)('A' + index)} do not fit on its {lengths[index]:0.###} length."
+                        ? $"The corner radii at both ends of face {(char)('A' + index)} do not fit on its {Format(lengths[index], unitScale)} length."
                         : $"The band is too thick for face {(char)('A' + index)}: its {name} outline has no straight part left."
                 );
             }
