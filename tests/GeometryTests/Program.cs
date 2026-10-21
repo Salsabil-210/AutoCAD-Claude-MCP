@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using AutoCADClaudeBridge;
 
-// Regression tests for FloorPlanGeometry (room detection) and WallGeometry
-// (wall drawing). Run from this folder with: dotnet run -c Release
+// Regression tests for FloorPlanGeometry (room detection), WallGeometry
+// (wall drawing) and BandGeometry (ceiling band parts). Run from this folder
+// with: dotnet run -c Release
 var failures = 0;
 
 void Check(string name, bool ok, string detail = "")
@@ -134,6 +135,61 @@ Check("walls: partition between exterior faces makes two rooms", result.Rooms.Co
 
 var corner = WallGeometry.Build(new List<Vec> { new(0, 0), new(4, 0), new(4, 3) }, false, 0.2, none, false);
 Check("walls: open L path mitres its corner", corner.Lines.Any(line => Near(line.End.X, 4.1) && Near(line.End.Y, -0.1)) && corner.Lines.Count == 4, corner.Lines.Count.ToString());
+
+// Band parts -------------------------------------------------------------------
+
+List<double> Radii(int count, double radius) => Enumerable.Repeat(radius, count).ToList();
+
+// A 100 x 60 rectangle band, R15 outside, 5 thick: inner R10.
+var square = new List<Vec> { new(0, 0), new(100, 0), new(100, 60), new(0, 60) };
+var band = BandGeometry.Build(square, Radii(4, 15), 5);
+Check("band: faces labelled A..D from the first corner", string.Join("", band.Faces.Select(face => face.Label)) == "ABCD"
+    && Near(band.Faces[0].EdgeLength, 100) && Near(band.Faces[1].EdgeLength, 60), string.Join(", ", band.Faces.Select(face => face.EdgeLength)));
+Check("band: straight part excludes both fillets", Near(band.Faces[0].StraightLength, 70) && Near(band.Faces[1].StraightLength, 30));
+Check("band: outer perimeter = straights + full circle", Near(band.Outer.Length, 2 * 70 + 2 * 30 + 2 * Math.PI * 15), band.Outer.Length.ToString("0.###"));
+Check("band: inner perimeter with R10", Near(band.Inner.Length, 2 * 70 + 2 * 30 + 2 * Math.PI * 10), band.Inner.Length.ToString("0.###"));
+Check("band: centreline perimeter with R12.5", Near(band.Centre.Length, 2 * 70 + 2 * 30 + 2 * Math.PI * 12.5), band.Centre.Length.ToString("0.###"));
+Check("band: inner radius = outer - thickness", band.Corners.All(corner => Near(corner.InnerRadius, 10)));
+Check("band: 8 outer vertices with 4 quarter-arc bulges", band.Outer.Vertices.Count == 8
+    && band.Outer.Bulges.Count(bulge => Near(bulge, Math.Tan(Math.PI / 8))) == 4);
+Check("band: first outer vertex is the tangent point on face D", Near(band.Outer.Vertices[0].X, 0) && Near(band.Outer.Vertices[0].Y, 15), band.Outer.Vertices[0].ToString());
+Check("band: inner loop is inset by the thickness", Near(band.Inner.Vertices.Min(vertex => vertex.X), 5) && Near(band.Inner.Vertices.Max(vertex => vertex.Y), 55));
+Check("band: face A outward is -Y", Near(band.Faces[0].Outward.X, 0) && Near(band.Faces[0].Outward.Y, -1));
+var uneven = BandGeometry.Build(square, new List<double> { 0, 20, 0, 0 }, 5);
+Check("band: flat midpoint sits in the middle of the flat part", Near(uneven.Faces[0].FlatMidpoint.X, 40) && Near(uneven.Faces[0].FlatMidpoint.Y, 0), uneven.Faces[0].FlatMidpoint.ToString());
+Check("band: corner 0 outward points down-left", Near(band.Corners[0].Outward.X, -Math.Sqrt(0.5)) && Near(band.Corners[0].Outward.Y, -Math.Sqrt(0.5)));
+
+var clockwise = BandGeometry.Build(square.AsEnumerable().Reverse().ToList(), Radii(4, 15), 5);
+Check("band: clockwise corners give the same ring", Near(clockwise.Outer.Length, band.Outer.Length) && Near(clockwise.Inner.Length, band.Inner.Length)
+    && clockwise.Outer.Bulges.Where(bulge => bulge != 0).All(bulge => bulge < 0) && Near(clockwise.Faces[0].Outward.Y, 1));
+
+var sharpInside = BandGeometry.Build(square, Radii(4, 3), 5);
+Check("band: radius under thickness leaves a sharp inner corner", sharpInside.Inner.Vertices.Count == 4 && sharpInside.Corners.All(corner => corner.InnerRadius == 0));
+
+Throws("band: concave outline refused",
+    () => BandGeometry.Build(new List<Vec> { new(0, 0), new(10, 0), new(5, 2), new(10, 10), new(0, 10) }, Radii(5, 0), 1), "convex");
+Throws("band: self-crossing star refused",
+    () => BandGeometry.Build(Enumerable.Range(0, 5).Select(i => new Vec(Math.Cos(i * 4 * Math.PI / 5), Math.Sin(i * 4 * Math.PI / 5))).ToList(), Radii(5, 0), 0.01), "crosses itself");
+var touching = BandGeometry.Build(new List<Vec> { new(0, 0), new(30, 0), new(30, 60), new(0, 60) }, Radii(4, 15), 5);
+Check("band: fillets that meet share one vertex", touching.Outer.Vertices.Count == 6 && touching.Faces[0].StraightLength < 1e-9
+    && touching.Outer.Vertices.Zip(touching.Outer.Vertices.Skip(1).Append(touching.Outer.Vertices[0])).All(pair => (pair.First - pair.Second).Length > 1e-6)
+    && Near(touching.Outer.Length, 2 * 30 + 2 * Math.PI * 15), $"{touching.Outer.Vertices.Count} vertices, {touching.Outer.Length:0.###}");
+Throws("band: radii that do not fit refused", () => BandGeometry.Build(square, Radii(4, 40), 5), "do not fit");
+Throws("band: too thick refused", () => BandGeometry.Build(square, Radii(4, 0), 31), "too thick");
+Throws("band: wrong radius count refused", () => BandGeometry.Build(square, Radii(3, 15), 5), "one per corner");
+
+// Job 435, decorative chandelier: a parallelogram, faces A and C 130 long,
+// B and D 143.4, R15 outside, 5 thick.
+var run = Math.Sqrt(130 * 130 - 27.7 * 27.7);
+var decorative = BandGeometry.Build(new List<Vec> { new(0, 0), new(run, 27.7), new(run, 171.1), new(0, 143.4) }, Radii(4, 15), 5);
+var groups = BandGeometry.GroupFaces(decorative.Faces, true, 0.05);
+Check("band 435: decorative chandelier faces 130 / 143.4", Near(decorative.Faces[0].EdgeLength, 130) && Near(decorative.Faces[1].EdgeLength, 143.4)
+    && Near(decorative.Faces[2].EdgeLength, 130) && Near(decorative.Faces[3].EdgeLength, 143.4), string.Join(", ", decorative.Faces.Select(face => face.EdgeLength.ToString("0.##"))));
+Check("band 435: two elevations, A,C and B,D", groups.Count == 2 && string.Join(",", groups[0].Labels) == "A,C" && string.Join(",", groups[1].Labels) == "B,D",
+    string.Join(" | ", groups.Select(group => string.Join(",", group.Labels))));
+Check("band 435: fillets on a skewed outline still sum to one turn",
+    Near(decorative.Outer.Length - decorative.Faces.Sum(face => face.StraightLength), 2 * Math.PI * 15), decorative.Outer.Length.ToString("0.###"));
+Check("band: ungrouped gives one elevation per face", BandGeometry.GroupFaces(decorative.Faces, false, 0.05).Count == 4);
 
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILED");
 return failures;

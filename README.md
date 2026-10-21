@@ -7,7 +7,7 @@ An open-source, local MCP bridge that lets Claude Desktop inspect and automate t
 
 ## What it can do
 
-The bridge exposes thirty-one Claude tools.
+The bridge exposes thirty-two Claude tools.
 
 **Inspect**
 
@@ -94,6 +94,10 @@ Records live in a dictionary `CLAUDE_BRIDGE_ROOMS` in the Named Objects Dictiona
 - `place_furniture` — place a furniture or fixture symbol (bed, sofa, WC, basin, bathtub, stove, ...) as a block.
 - `insert_block` — insert a block defined in the drawing or taken from the bridge block library, with attribute values.
 
+**Ceiling features**
+
+- `draw_band_part` — draw one ceiling band part (chandelier ring, frame, lit band) as a production drawing: plan and one elevation per face. See [Ceiling feature production](#ceiling-feature-production).
+
 **Annotate**
 
 - `add_linear_dimension` — horizontal, vertical, or rotated dimension between two points.
@@ -140,6 +144,31 @@ Layers:
 Furniture symbols are defined once per drawing at a standard size in metres, centred on the block origin, and scaled to the `width` and `depth` you give. Room areas measured through a doorway include half the wall thickness under the opening, because the separation line runs along the wall centreline.
 
 `insert_block` also reads `<name>.dwg` from `%LOCALAPPDATA%\AutoCADClaudeBridge\blocks` when the drawing has no block of that name, so an office block library can be dropped there. No other file path can be read.
+
+## Ceiling feature production
+
+Suspended ceiling features (rings, frames, lit bands, bent arrows, cut letters) are drawn from a **part spec**: a JSON description of the job and its parts that Claude fills from a render and the designer confirms before anything is drawn. The skill in [`skills/ceiling-feature-production`](skills/ceiling-feature-production/SKILL.md) holds the workflow, the spec format and a worked example (job 435).
+
+`draw_band_part` draws one band part:
+
+- **Plan** — outer and inner outline on `SIGN-BAND` (optional solid fill in `fillColor`), face letters A, B, C, ... with view markers, an aligned dimension on every face, the band thickness, one radius note per distinct pair of outer and inner radii, the part title with quantity, and a summary with the developed (centreline) length.
+- **Elevations** — one per face to the right of the plan; faces of equal length share one elevation (`ELEVATION "B,D"`). The elevation length is the face's corner-to-corner length, so plan and elevations cannot disagree; when fillets shorten the flat part, it is noted. `lightStrip` adds the LED strip (`SIGN-LIGHT`) with chained height dimensions.
+
+Geometry rules:
+
+- `points` are the **outer sharp corners**, the corners the outline would have without fillets. Face A runs from `points[0]` to `points[1]`. Only convex outlines are accepted.
+- `cornerRadius` (or `cornerRadii`, one per corner) is the outer radius. The inner outline keeps the fillet centres, so its radius is the outer radius minus `thickness`, or a sharp corner when the outer radius is smaller.
+- Radii that do not fit on a face, or a band too thick for its outline, are refused with the face named.
+- Dimensions read in the call's `units` with one decimal, whatever the drawing's units (`DIMLFAC` is set per dimension).
+
+The result returns each face's edge and flat length, the corner radii, the outer, inner and centreline perimeters, the elevation groups, and the drawing extents for placing the next part.
+
+| Layer | Contents |
+| --- | --- |
+| `SIGN-BAND` | Band outlines and fills |
+| `SIGN-LIGHT` | LED strip lines and fill |
+| `SIGN-DIM` | Dimensions |
+| `SIGN-ANNO` | Titles, face letters, markers, notes |
 
 ## Units
 

@@ -83,3 +83,20 @@ Then `generate_layout_variants` on separate layers and
 `annotate_doors_windows`, `set_block_attributes`, `export_drawing_pdf`,
 `export_drawing_dwg`, `export_plan_image`. File-writing tools need the
 same path restrictions as the block library. ⏳
+
+## Ceiling features track — production books from renders
+
+Goal: from a render of a suspended ceiling feature, Claude produces the
+Trust-Lines production book (one sheet per part: plan, every face in
+elevation, dimensions, legend, title block). Job 435 is the test case.
+
+| Phase | Item | Status |
+| --- | --- | --- |
+| C1 | Part spec format and the `ceiling-feature-production` skill | ✅ |
+| C1 | `draw_band_part`: rings, frames and lit bands with grouped elevations | ✅ |
+| C1 | Rebuild 435 sheets 2 and 3 from the spec in AutoCAD | 🚧 needs a run in AutoCAD |
+| C2 | `draw_bent_bar_part`: arrows and swooshes, developed length, arrow/chevron ends | ⏳ |
+| C2 | `add_face_graphic`: cut letters, chevrons, logos on band elevations | ⏳ |
+| C3 | `draw_sheet`: Trust-Lines frame and title block, material legend | ⏳ needs the title block DWG |
+| C3 | `draw_assembly_plan`, `check_production_book`, `plot_sheets_pdf` | ⏳ |
+| C4 | Render reading tested on new jobs | ⏳ needs more past books |

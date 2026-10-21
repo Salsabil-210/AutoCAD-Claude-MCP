@@ -566,6 +566,57 @@ const tools = [
     annotations: drawingHints,
   },
   {
+    name: "draw_band_part",
+    description:
+      "Draw one ceiling band part as a production drawing: a closed ring of sheet material standing on edge (chandelier ring, frame, lit band). Draws the plan (outer and inner outline, face letters A, B, C... from points[0]->points[1] onward, edge dimensions, thickness, radius notes, title with quantity, developed-length summary) and to its right one elevation per face, with faces of equal length sharing one elevation (\"B,D\"). Elevation length = the face's corner-to-corner length, so plan and elevations always agree; the flat length between fillets is noted when it differs. points are the OUTER sharp corners (where the faces would meet without fillets), convex outlines only; cornerRadius is the outer fillet radius and the inner radius is cornerRadius - thickness. lightStrip adds an LED strip band to every elevation. Returns face lengths, perimeters (outer, inner, centreline developed length) and the drawing extents, so the next part can be placed clear of this one." + UNIT_RULE,
+    inputSchema: {
+      type: "object",
+      properties: {
+        units,
+        name: { ...text("Part name shown as the sheet title, e.g. \"Decorative chandelier\"."), minLength: 1, maxLength: 80 },
+        quantity: { type: "integer", minimum: 1, maximum: 10000, default: 1, description: "How many of this part to make." },
+        points: {
+          type: "array",
+          items: point,
+          minItems: 3,
+          maxItems: 26,
+          description: "Outer sharp corners in order around the ring; face A runs from points[0] to points[1].",
+        },
+        cornerRadius: { type: "number", minimum: 0, maximum: MAX_SIZE, description: "Outer fillet radius at every corner; 0 = sharp." },
+        cornerRadii: {
+          type: "array",
+          items: { type: "number", minimum: 0, maximum: MAX_SIZE },
+          minItems: 3,
+          maxItems: 26,
+          description: "Outer fillet radius per corner, in points order. Overrides cornerRadius.",
+        },
+        thickness: size("Band material thickness, measured inward from the outer outline."),
+        height: size("Band height (the vertical size seen in elevation)."),
+        lightStrip: {
+          type: "object",
+          description: "LED light strip running along every face.",
+          properties: {
+            height: size("Strip height."),
+            offset: { type: "number", minimum: 0, maximum: MAX_SIZE, description: "Distance from the band's bottom edge to the strip. Omit to centre it." },
+          },
+          required: ["height"],
+          additionalProperties: false,
+        },
+        groupFaces: { type: "boolean", default: true, description: "Draw faces of equal length as one elevation." },
+        fillColor: { ...color, description: "AutoCAD Color Index for the band's solid fill in plan and elevation (e.g. 5 blue, 2 yellow, 41 cream). Omit for outline only." },
+        lightColor: { ...color, description: "AutoCAD Color Index for the light strip fill. Default 2 (yellow)." },
+        textHeight: size("Sheet text height. Default: 1/40 of the part's largest size."),
+        bandLayer: { ...layer, default: "SIGN-BAND" },
+        lightLayer: { ...layer, default: "SIGN-LIGHT" },
+        dimensionLayer: { ...layer, default: "SIGN-DIM" },
+        annotationLayer: { ...layer, default: "SIGN-ANNO" },
+      },
+      required: ["name", "points", "thickness", "height"],
+      additionalProperties: false,
+    },
+    annotations: drawingHints,
+  },
+  {
     name: "insert_block",
     description:
       "Insert one block reference by name: a block already defined in the drawing, or <name>.dwg from the bridge block library folder (%LOCALAPPDATA%\\AutoCADClaudeBridge\\blocks). Scales are ratios and are not unit-converted. attributes sets attribute values by tag." + UNIT_RULE,

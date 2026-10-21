@@ -9,5 +9,6 @@
   <ItemGroup>
     <Compile Include="..\..\FloorPlanGeometry.cs" />
     <Compile Include="..\..\WallGeometry.cs" />
+    <Compile Include="..\..\BandGeometry.cs" />
   </ItemGroup>
 </Project>

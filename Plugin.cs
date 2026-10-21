@@ -266,6 +266,7 @@ internal static partial class BridgeHost
             "copy_entities" => CopyEntities(request.Arguments),
             "rotate_entities" => RotateEntities(request.Arguments),
             "mirror_entities" => MirrorEntities(request.Arguments),
+            "draw_band_part" => DrawBandPart(request.Arguments),
             "floor_plan_summary" => FloorPlanSummary(request.Arguments),
             "query_region" => QueryRegion(request.Arguments),
             "set_floor_plan_type" => SetFloorPlanType(request.Arguments),

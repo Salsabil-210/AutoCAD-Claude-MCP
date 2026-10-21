@@ -101,6 +101,10 @@
       "description": "Place one furniture or fixture symbol as a block (CB_<KIND>) centred at x, y. Width runs along the symbol's X, depth along Y, and the back edge (bed headboard, sofa back, WC tank) faces +Y at rotation 0. To put the back against a wall: wall above = 0, wall on the left = 90, wall below = 180, wall on the right = -90; place the centre half the depth away from the wall face. Fixtures go on A-FIXT, furniture on A-FURN unless layer is given. Omit width/depth for standard sizes. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
     },
     {
+      "name": "draw_band_part",
+      "description": "Draw one ceiling band part (chandelier ring, frame, lit band) as a production drawing: plan with face letters, edge and thickness dimensions, radius notes, title and developed length, plus one elevation per face (equal faces grouped), with an optional LED light strip. points are the outer sharp corners of a convex outline. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
+    },
+    {
       "name": "insert_block",
       "description": "Insert one block reference by name: a block already defined in the drawing, or <name>.dwg from the bridge block library folder (%LOCALAPPDATA%\\AutoCADClaudeBridge\\blocks). Scales are ratios and are not unit-converted. attributes sets attribute values by tag. Pass the user's numbers exactly as stated with `units` set to the unit they used (e.g. 300 cm -> 300 with units \"cm\"). Never convert units yourself. If the user gave no unit, ask them."
     },

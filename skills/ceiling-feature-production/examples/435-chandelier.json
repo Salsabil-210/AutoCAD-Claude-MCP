@@ -1,0 +1,78 @@
+{
+  "specVersion": 1,
+  "job": {
+    "number": "435",
+    "site": "435 Erie, 4216 Main St, PA",
+    "title": "CHANDELIER",
+    "date": "2026-07-07",
+    "units": "cm"
+  },
+  "materials": [
+    { "id": "M1", "name": "Blue finish (band)", "ral": "TBD", "aci": 5 },
+    { "id": "M2", "name": "Cream finish (arrow, light band)", "ral": "TBD", "aci": 41 }
+  ],
+  "parts": [
+    {
+      "id": "P1",
+      "type": "band",
+      "name": "Chandelier with light",
+      "quantity": 1,
+      "material": "M1",
+      "points": [{ "x": 0, "y": 0 }, { "x": 97.70, "y": 21.31 }, { "x": 97.70, "y": 139.21 }, { "x": 0, "y": 117.9 }],
+      "cornerRadius": 15,
+      "thickness": 5,
+      "height": 20,
+      "lightStrip": { "height": 3, "offset": 8.5 },
+      "faceGraphics": [
+        { "face": "A", "kind": "letters", "text": "COFFEE", "height": 8.5, "cut": "carved" }
+      ],
+      "source": { "sheet": 2, "confirmed": false }
+    },
+    {
+      "id": "P2",
+      "type": "band",
+      "name": "Decorative chandelier",
+      "quantity": 1,
+      "material": "M1",
+      "points": [{ "x": 0, "y": 0 }, { "x": 127.01, "y": 27.7 }, { "x": 127.01, "y": 171.1 }, { "x": 0, "y": 143.4 }],
+      "cornerRadius": 15,
+      "thickness": 5,
+      "height": 10,
+      "lightStrip": null,
+      "faceGraphics": [
+        { "face": "A", "kind": "chevron", "count": 2, "at": 25, "width": 13 },
+        { "face": "B", "kind": "chevron", "count": 2, "at": 95.4, "width": 13 },
+        { "face": "C", "kind": "chevron", "count": 2, "at": 82, "width": 13 }
+      ],
+      "source": { "sheet": 3, "confirmed": false }
+    },
+    {
+      "id": "P3",
+      "type": "bent_bar",
+      "name": "Decorative arrow",
+      "quantity": 1,
+      "material": "M2",
+      "path": [
+        { "kind": "line", "length": 44.3 },
+        { "kind": "arc", "radius": 15, "length": 27.5 },
+        { "kind": "line", "length": 90.1 }
+      ],
+      "width": 3,
+      "thickness": 3,
+      "ends": { "start": "plain", "end": "arrow", "arrowHeight": 30.9 },
+      "source": { "sheet": 4, "confirmed": false }
+    }
+  ],
+  "assembly": [],
+  "openQuestions": [
+    "Both colours are RAL TBD. Which RAL codes?",
+    "Chandelier with light: sheet 2 draws elevations B, C, D at 100.0 long, but face D is 117.9 in plan. The spec uses the plan; confirm.",
+    "Chandelier with light: the face A dimensions 25.7 + 50.1 + 25.7 = 101.5 do not match face C (100.0). Is the outline a true parallelogram?",
+    "Decorative chandelier: the faces are 130 long on the slant, but sheet 1 gives 130 as the overall horizontal width. Which one is 130?",
+    "Decorative chandelier: what are the 3.0 / 10.0 / 3.0 sizes on the elevations — a 10 band with 3 returns, or a 16 band?",
+    "Decorative chandelier: there is no elevation D. Does face D carry graphics?",
+    "Decorative arrow: plan shows 3.6 thick, elevations show 3.0. Which is right?",
+    "Units are not stated on the sheets. Confirm cm.",
+    "Hanger positions, drop lengths and the LED product are not given."
+  ]
+}
